@@ -30,14 +30,25 @@ open class CometChatGroupMembers: CometChatListBase {
     
     // MARK: - Declaration of View Properties
     public var disableUserPresence: Bool = false
-    public var tailView: ((_ groupMember: GroupMember?) -> UIView)?
-    public var subtitle: ((_ groupMember: GroupMember?) -> UIView)?
-    public var listItemView: ((_ groupMember: GroupMember?) -> UIView)?
-    public var options: ((_ group: Group,_ groupMember: GroupMember?) -> [CometChatGroupMemberOption])?
-    public var onItemLongClick: ((_ groupMember: GroupMember, _ indexPath: IndexPath) -> Void)?
-    public var onItemClick: ((_ groupMember: GroupMember, _ indexPath: IndexPath) -> Void)?
-    public var onError: ((CometChatException) -> Void)?
+    var leadingView: ((_ groupMember: GroupMember?) -> UIView)?
+    var titleView: ((_ groupMember: GroupMember?) -> UIView)?
+    var trailView: ((_ groupMember: GroupMember?) -> UIView)?
+    var subtitle: ((_ groupMember: GroupMember?) -> UIView)?
+    var listItemView: ((_ groupMember: GroupMember?) -> UIView)?
+    var options: ((_ group: Group,_ groupMember: GroupMember?) -> [CometChatGroupMemberOption])?
+    var addOptions: ((_ group: Group,_ groupMember: GroupMember?) -> [CometChatGroupMemberOption])?
+    var onItemLongClick: ((_ groupMember: GroupMember, _ indexPath: IndexPath) -> Void)?
+    var onItemClick: ((_ groupMember: GroupMember, _ indexPath: IndexPath) -> Void)?
+    var onError: ((CometChatException) -> Void)?
+    var onEmpty: (() -> Void)?
+    var onLoad: (([GroupMember]) -> Void)?
     public var onSelectedItemProceed: ((_ groupMembers: [GroupMember]) -> ())?
+    
+    
+    public var hideUserStatus: Bool = false
+    public var hideKickMemberOption: Bool = false
+    public var hideBanMemberOption: Bool = false
+    public var hideScopeChangeOption: Bool = false
     
     //MARK: - INIT
     public init() {
@@ -52,7 +63,7 @@ open class CometChatGroupMembers: CometChatListBase {
     open func defaultSetup() {
         
         self.prefersLargeTitles = false
-        self.showSearch = true
+        self.hideSearch = false
         
         title = "Members"
         
@@ -130,16 +141,27 @@ open class CometChatGroupMembers: CometChatListBase {
                 this.removeErrorView()
                 this.reload()
                 
+                if let onLoad = this.onLoad?(this.viewModel.groupMembers){
+                    onLoad
+                    return
+                }
+                
                 switch this.viewModel.isSearching {
                 case true:
                     if this.viewModel.filteredGroupMembers.isEmpty {
                         if this.viewModel.groupMembers.isEmpty {
                             this.showEmptyView()
+                            if let onEmpty = this.onEmpty?(){
+                                onEmpty
+                            }
                         }
                     }
                 case false:
                     if this.viewModel.groupMembers.isEmpty {
                         this.showEmptyView()
+                        if let onEmpty = this.onEmpty?(){
+                            onEmpty
+                        }
                     }
                 }
             })
@@ -147,9 +169,11 @@ open class CometChatGroupMembers: CometChatListBase {
         viewModel.failure = { [weak self] error in
             guard let this = self else { return }
             // this is error callback to the user.
-            this.onError?(error)
             DispatchQueue.main.async {
                 this.removeLoadingView()
+                if let onError = this.onError?(error){
+                    onError
+                }
                 this.showErrorView()
             }
         }
@@ -256,7 +280,9 @@ open class CometChatGroupMembers: CometChatListBase {
             )
             scopeChangeAction.image = scopeChangeImage
             scopeChangeAction.backgroundColor = CometChatTheme.primaryColor
-            actions.append(scopeChangeAction)
+            if !hideScopeChangeOption{
+                actions.append(scopeChangeAction)
+            }
         }
         
         
@@ -275,7 +301,9 @@ open class CometChatGroupMembers: CometChatListBase {
             )
             banAction.image = banActionImage
             banAction.backgroundColor = CometChatTheme.warningColor
-            actions.append(banAction)
+            if !hideBanMemberOption{
+                actions.append(banAction)
+            }
         }
         
         // - Kick Action -
@@ -293,7 +321,9 @@ open class CometChatGroupMembers: CometChatListBase {
             )
             removeAction.image = removeActionImage
             removeAction.backgroundColor = CometChatTheme.errorColor
-            actions.append(removeAction)
+            if !hideKickMemberOption{
+                actions.append(removeAction)
+            }
         }
         
         return actions
@@ -399,14 +429,22 @@ extension CometChatGroupMembers {
             //setting avatar
             listItem.set(avatarURL: groupMember.avatar ?? "", with: groupMember.name ?? "")
             
+            if let titleView = titleView?(groupMember){
+                listItem.set(titleView: titleView)
+            }
+            
             //setting subtitle if passed from outside
             if let subTitleView = subtitle?(groupMember) {
                 listItem.set(subtitle: subTitleView)
             }
             
+            if let leadingView = leadingView?(groupMember){
+                listItem.set(leadingView: leadingView)
+            }
+            
             //setting tailView
-            if let tailView = tailView?(groupMember) {
-                listItem.set(tail: tailView)
+            if let trailView = trailView?(groupMember) {
+                listItem.set(tail: trailView)
             } else if let tailView = configureTailView(groupMember: groupMember) {
                 listItem.set(tail: tailView)
             }
@@ -418,9 +456,9 @@ extension CometChatGroupMembers {
             case .offline:
                 listItem.statusIndicator.isHidden = true
             case .online:
-                listItem.statusIndicator.isHidden = false
+                listItem.statusIndicator.isHidden = hideUserStatus
             case .available:
-                listItem.statusIndicator.isHidden = true
+                listItem.statusIndicator.isHidden = hideUserStatus
             @unknown default: listItem.statusIndicator.isHidden = true
             }
             listItem.statusIndicator.style = statusIndicatorStyle
@@ -500,6 +538,19 @@ extension CometChatGroupMembers {
             actions.append(contentsOf: configureMenu(groupMember: groupMember))
         }
         
+        if let addOptions = addOptions?(viewModel.group, groupMember){
+            let customActions = addOptions.map { option -> UIContextualAction in
+                let action = UIContextualAction(style: .normal, title: option.title) { (action, sourceView, completionHandler) in
+                    option.onClick?(groupMember, self.viewModel.group ,indexPath.section, option, self)
+                    completionHandler(true)
+                }
+                action.backgroundColor = option.backgroundColor
+                action.image = option.icon
+                return action
+            }
+            actions.append(contentsOf: customActions)
+        }
+        
         return  UISwipeActionsConfiguration(actions: actions)
     }
 }
@@ -514,115 +565,6 @@ extension CometChatGroupMembers: CometChatConnectionDelegate {
     public func connecting() {}
     
     public func disconnected() {}
-}
-
-//MARK: PROPERTIES
-extension CometChatGroupMembers {
-    
-    @discardableResult
-    public func setTailView(tailView: ((_ groupMember: GroupMember?) -> UIView)?) -> Self {
-        self.tailView = tailView
-        return self
-    }
-    
-    @discardableResult
-    public func setSubtitleView(subtitleView: ((_ groupMember: GroupMember?) -> UIView)?) -> Self {
-        self.subtitle = subtitleView
-        return self
-    }
-    
-    @discardableResult
-    public func disable(usersPresence: Bool) -> Self {
-        self.disableUserPresence = usersPresence
-        return self
-    }
-    
-    public func onSelection(_ onSelection: @escaping ([GroupMember]?) -> ()) {
-        onSelection(viewModel.selectedGroupMembers)
-    }
-    
-    @discardableResult
-    public func setListItemView(listItemView: ((_ groupMember: GroupMember?) -> UIView)?) -> Self {
-        self.listItemView = listItemView
-        return self
-    }
-    
-    @discardableResult
-    public func setOptions(options: ((_ group: Group, _ groupMember: GroupMember?) -> [CometChatGroupMemberOption])?) -> Self {
-        self.options = options
-        return self
-    }
-    
-    @discardableResult
-    public func setOnItemClick(onItemClick: @escaping ((_ groupMember: GroupMember, _ indexPath: IndexPath) -> Void)) -> Self {
-        self.onItemClick = onItemClick
-        return self
-    }
-    
-    @discardableResult
-    public func setOnItemLongClick(onItemLongClick: @escaping ((_ groupMember: GroupMember, _ indexPath: IndexPath) -> Void)) -> Self {
-        self.onItemLongClick = onItemLongClick
-        return self
-    }
-    
-    @discardableResult
-    public func setOnError(onError: @escaping ((_ error: CometChatException) -> Void)) -> Self {
-        self.onError = onError
-        return self
-    }
-    
-    @discardableResult
-    public func set(groupMemberRequestBuilder: GroupMembersRequest.GroupMembersRequestBuilder) -> Self {
-        viewModel.set(groupMembersRequestBuilder: groupMemberRequestBuilder)
-        return self
-    }
-    
-    @discardableResult
-    public func set(group: Group) -> Self {
-        viewModel.set(group: group)
-        return self
-    }
-    
-    @discardableResult
-    public func set(groupMemberSearchRequestBuilder: GroupMembersRequest.GroupMembersRequestBuilder) -> Self {
-        viewModel.set(searchGroupMembersRequestBuilder: groupMemberSearchRequestBuilder)
-        return self
-    }
-    
-    @discardableResult
-    public func add(groupMember: GroupMember) -> Self {
-        viewModel.add(groupMember: groupMember)
-        return self
-    }
-    
-    @discardableResult
-    public func update(groupMember: GroupMember) -> Self {
-        viewModel.update(groupMember: groupMember)
-        return self
-    }
-    
-    @discardableResult
-    public func insert(groupMember: GroupMember, at: Int) -> Self {
-        viewModel.insert(groupMember: groupMember, at: at)
-        return self
-    }
-    
-    @discardableResult
-    public func remove(groupMember: GroupMember) -> Self {
-        viewModel.remove(groupMember: groupMember)
-        return self
-    }
-    
-    @discardableResult
-    public func clearList() -> Self {
-        viewModel.clearList()
-        return self
-    }
-    
-    public func size() -> Int {
-        viewModel.size()
-    }
-    
 }
 
 extension UIImage {

@@ -62,6 +62,7 @@ open class GroupsViewModel: NSObject, GroupsViewModelProtocol {
     var isSearching: Bool = false
     var selectedGroups: [CometChatSDK.Group] = []
     var groupsRequestBuilder: GroupsRequest.GroupsRequestBuilder
+    private var filterGroupsRequestBuilder: GroupsRequest.GroupsRequestBuilder?
     private var groupsRequest: GroupsRequest?
     private var filterGroupsRequest: GroupsRequest?
     
@@ -79,6 +80,11 @@ open class GroupsViewModel: NSObject, GroupsViewModelProtocol {
         groupsRequest = groupsRequestBuilder.build()
         groups.removeAll()
         fetchGroups()
+    }
+    
+    public func set(searchRequestBuilder: GroupsRequest.GroupsRequestBuilder) {
+        self.filterGroupsRequestBuilder = searchRequestBuilder
+        self.filterGroupsRequest = self.filterGroupsRequestBuilder!.build()
     }
     
     func fetchGroups() {

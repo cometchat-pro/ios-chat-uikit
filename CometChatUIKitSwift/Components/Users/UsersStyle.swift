@@ -159,5 +159,7 @@ public struct UsersStyle: ListBaseStyle, ListItemStyle, SearchBarStyle {
     
     // Font for section header titles
     public var headerTitleFont: UIFont? = CometChatTypography.Heading4.medium
+    
+    public init() {}
 }
 

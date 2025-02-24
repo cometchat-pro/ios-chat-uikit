@@ -172,7 +172,7 @@ open class CometChatMessageInformation: CometChatListBase {
     }
     
     open override func showErrorView() {
-        if disableErrorState { return }
+        if hideErrorView { return }
         isErrorStateVisible = true
         errorStateView.translatesAutoresizingMaskIntoConstraints = true
         var heightForErrorStateView = self.view.frame.height - ((bubbleSnapshotView?.bounds.height ?? 0) + (CometChatSpacing.Padding.p5*2)) - self.view.safeAreaInsets.top - self.view.safeAreaInsets.bottom

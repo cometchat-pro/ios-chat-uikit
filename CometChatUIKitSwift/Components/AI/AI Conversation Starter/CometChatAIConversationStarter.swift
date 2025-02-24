@@ -189,7 +189,6 @@ extension CometChatAIConversationStarter: UITableViewDelegate, UITableViewDataSo
     public func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
         if let onClick = onAiMessageClicked?(aiMessagesList[indexPath.row]) {
             onClick
-            CometChatUIEvents.hidePanel(id: id, alignment: .composerTop)
         }
     }
     

@@ -32,7 +32,11 @@ open class CometChatReactions: UIStackView {
     public static var style = ReactionsStyle()
     
     /// Instance property for component-level styling, defaults to the global style.
-    public lazy var style = CometChatReactions.style
+    public lazy var style = CometChatReactions.style{
+        didSet{
+            buildUI()
+        }
+    }
     
     /// Initializes a new instance of `CometChatReactions`.
     override public init(frame: CGRect) {

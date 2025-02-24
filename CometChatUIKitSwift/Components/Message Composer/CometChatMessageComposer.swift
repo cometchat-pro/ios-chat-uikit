@@ -193,6 +193,9 @@ open class CometChatMessageComposer: UIView {
     public var auxilaryButtonView: ((_ user: User?, _ group: Group?) -> UIView)?
     public var sendButtonView: ((_ user: User?, _ group: Group?) -> UIView)?
     public var onClickSuggestionListView: (() -> Void)?
+    var onTextChangedListener: ((String) -> ())?
+    
+    var onError: ((_ error: CometChatException) -> Void)?
     
     public var viewModel = MessageComposerViewModel()
     public var placeholderText: String = "TYPE_A_MESSAGE".localize()
@@ -216,7 +219,44 @@ open class CometChatMessageComposer: UIView {
         }
     }
     public var hideSendButton = false
+    public var hideAIButton = false
     public var attachmentOptions = [CometChatMessageComposerAction]()
+    
+    var additionalConfiguration = AdditionalConfiguration()
+    
+    public var hideImageAttachmentOption: Bool = false{
+        didSet{
+            additionalConfiguration.hideImageAttachmentOption = hideImageAttachmentOption
+        }
+    }
+    public var hideVideoAttachmentOption: Bool = false{
+        didSet{
+            additionalConfiguration.hideVideoAttachmentOption = hideVideoAttachmentOption
+        }
+    }
+    public var hideFileAttachmentOption: Bool = false{
+        didSet{
+            additionalConfiguration.hideFileAttachmentOption = hideFileAttachmentOption
+        }
+    }
+    public var hidePollsOption: Bool = false{
+        didSet{
+            additionalConfiguration.hidePollsOption = hidePollsOption
+        }
+    }
+    public var hideCollaborativeDocumentOption: Bool = false{
+        didSet{
+            additionalConfiguration.hideCollaborativeDocumentOption = hideCollaborativeDocumentOption
+        }
+    }
+    public var hideCollaborativeWhiteboardOption: Bool = false{
+        didSet{
+            additionalConfiguration.hideCollaborativeWhiteboardOption = hideCollaborativeWhiteboardOption
+        }
+    }
+    public var hideAttachmentButton: Bool = false
+    public var hideVoiceRecordingButton: Bool = false
+    public var hideStickersButton: Bool = false
     
     //Internal variables
     internal var typingWorkItem: DispatchWorkItem?
@@ -246,6 +286,13 @@ open class CometChatMessageComposer: UIView {
         if newWindow != nil {
             setupStyle()
             connect()
+            updateUI()
+        }
+    }
+    
+    func updateUI(){
+        if hideSendButton{
+            sendButton.isHidden = true
         }
     }
     
@@ -352,6 +399,13 @@ open class CometChatMessageComposer: UIView {
         aiButton.imageView?.tintColor = style.aiImageTint
         
         viewModel.textFormatter.forEach({ ($0 as? CometChatMentionsFormatter)?.set(composerTextStyle: mentionStyle) })
+        
+        if hideAttachmentButton{
+            attachmentButton.isHidden = true
+        }
+        if hideVoiceRecordingButton{
+            microphoneButton.isHidden = true
+        }
     }
     
     open func setupAuxiliaryButton() {
@@ -365,12 +419,15 @@ open class CometChatMessageComposer: UIView {
                 auxiliaryOptions.subviews.forEach({
                     if let button = $0 as? UIButton {
                         button.imageView?.tintColor = style.stickerTint
+                        if hideStickersButton{
+                            button.isHidden = true
+                        }
                     }
                 })
                 
                 ///Checking AI enabled of not
                 let aiOptionsList = ChatConfigurator.getDataSource().getAIOptions(controller: controller ?? UIViewController(), user: viewModel.user, group: viewModel.group, id: getId(), aiOptionsStyle: aiOptionsStyle)
-                if let aiOptionsList = aiOptionsList, !aiOptionsList.isEmpty {
+                if let aiOptionsList = aiOptionsList, !aiOptionsList.isEmpty && !hideAIButton {
                     auxiliaryOptions.addArrangedSubview(aiButton)
                 }
                 
@@ -379,7 +436,11 @@ open class CometChatMessageComposer: UIView {
                 } else if auxiliaryButtonsAlignment == .left {
                     auxiliaryOptions.addArrangedSubview(UIView())
                 }
-                auxiliaryStackView.embed(auxiliaryOptions)
+                if let auxilaryButtonView = auxilaryButtonView?(viewModel.user, viewModel.group){
+                    auxiliaryStackView.embed(auxilaryButtonView)
+                }else{
+                    auxiliaryStackView.embed(auxiliaryOptions)
+                }
             }
         }
     }
@@ -429,7 +490,7 @@ open class CometChatMessageComposer: UIView {
         impactFeedbackLight.impactOccurred()
         
         if let onSendButtonClick = onSendButtonClick {
-            if let text = textView.text {
+            if let text = textView.text, !text.isEmpty {
                 let message = viewModel.setupBaseMessage(message: text, textFormatter: selectedFormatters)
                 onSendButtonClick(message)
             }
@@ -516,18 +577,17 @@ open class CometChatMessageComposer: UIView {
 //MARK: Keyboard event
 extension CometChatMessageComposer {
     
-    private func removeKeyboard() {
+    func removeKeyboard() {
         NotificationCenter.default.removeObserver(UIResponder.keyboardWillChangeFrameNotification)
     }
     
-    private func observeKeyboard() {
+    func observeKeyboard() {
         NotificationCenter.default.addObserver(self, selector: #selector(keyboardWillChangeFrame), name: UIResponder.keyboardWillChangeFrameNotification, object: nil)
     }
     
     @objc private func keyboardWillChangeFrame(_ notification: Notification) {
         if textView.isFirstResponder {
             if let endFrame = (notification.userInfo?[UIResponder.keyboardFrameEndUserInfoKey] as? NSValue)?.cgRectValue {
-                remove(footerView: true)
                 let keyboardHeight = UIScreen.main.bounds.height - endFrame.origin.y
                 if keyboardHeight > 0 {
                     bottomConstant.constant = -keyboardHeight - CometChatSpacing.Margin.m2
@@ -554,7 +614,7 @@ extension CometChatMessageComposer {
         if let attachmentOption = attachmentOptionsClosure?(viewModel.user, viewModel.group, controller) {
             attachmentOptions.append(contentsOf: attachmentOption)
         } else {
-            attachmentOptions.append(contentsOf: ChatConfigurator.getDataSource().getAttachmentOptions(controller: controller!, user: viewModel.user, group: viewModel.group, id: getId()) ?? MessageUtils.getDefaultAttachmentOptions())
+            attachmentOptions.append(contentsOf: ChatConfigurator.getDataSource().getAttachmentOptions(controller: controller!, user: viewModel.user, group: viewModel.group, id: getId(), additionalConfiguration: additionalConfiguration) ?? MessageUtils.getDefaultAttachmentOptions(addtionalConfiguration: additionalConfiguration))
         }
         
         var actionItems = [ActionItem]()
@@ -636,53 +696,7 @@ extension CometChatMessageComposer {
     }
 }
 
-
 extension CometChatMessageComposer {
-    
-    func setupViewModel() {
-        
-        viewModel.reset  = { [weak self] status in
-            guard let this = self else { return }
-            this.textView.text = ""
-            this.sendButton.isEnabled = false
-            this.sendButton.backgroundColor = this.style.inactiveSendButtonImageBackgroundColor
-            this.selectedFormatters.removeAll()
-            this.endOnGoingTextFormatting()
-            this.removeLimitView()
-            this.messageComposerMode = .draft
-            if !this.messagePreview.isHidden {
-                this.hideEditPreview()
-            }
-        }
-        
-        viewModel.onMessageEdit = { [weak self] message in
-            guard let this = self else { return}
-            this.preview(message: message, mode: .edit)
-        }
-        
-        viewModel.isSoundForMessageEnabled = { [weak self]  in
-            guard let this = self else { return }
-            if !this.disableSoundForMessages {
-                CometChatSoundManager().play(sound: .outgoingMessage, customSound: this.customSoundForMessage)
-            }
-        }
-        
-    }
-}
-
-extension CometChatMessageComposer {
-    
-    @discardableResult
-    public func set(maxLines: Int) -> Self {
-        textView.maxLength = maxLines
-        return self
-    }
-    
-    @discardableResult
-    public func set(controller: UIViewController) -> Self {
-        self.controller = controller
-        return self
-    }
     
     @discardableResult
     public func connect() ->  Self {
@@ -730,141 +744,43 @@ extension CometChatMessageComposer {
         }
         return self
     }
+}
+
+
+extension CometChatMessageComposer {
     
-    @discardableResult
-    public func reply(message: BaseMessage)  -> Self {
-        viewModel.message = message
-        self.messageComposerMode = .reply
-        UIView.transition(with: messagePreview, duration: 0.4,
-                          options: .transitionCrossDissolve,
-                          animations: {
-            self.messagePreview.isHidden = false
-        })
-        return self
-    }
-    
-    @discardableResult
-    public func set(textFormatter: [CometChatTextFormatter]) -> Self {
-        viewModel.textFormatter = textFormatter
-        return self
-    }
-    
-    @discardableResult
-    public func onSuggestionItemClick(onSuggestionItemClick: @escaping ((SuggestionItem) -> Void)) -> Self {
-        self.onSuggestionItemClick = onSuggestionItemClick
-        return self
-    }
-    
-    @discardableResult
-    public func setOnSendButtonClick(onSendButtonClick: @escaping ((BaseMessage) -> Void)) -> Self {
-        self.onSendButtonClick = onSendButtonClick
-        return self
-    }
+    func setupViewModel() {
         
-    @discardableResult
-    public func setOnSendButtonClick(onSendButtonClick: ((BaseMessage) -> ())?) -> Self {
-        self.onSendButtonClick = onSendButtonClick
-        return self
-    }
-    
-    @discardableResult
-    public func setAttachmentOptions(attachmentOptions: @escaping ((_ user: User?, _ group: Group?, _ controller: UIViewController?) -> [CometChatMessageComposerAction])) -> Self {
-        self.attachmentOptionsClosure = attachmentOptions
-        return self
-    }
-    
-    @discardableResult
-    public func onClickSuggestionListView(suggestionListView: @escaping (() -> (Void))) -> Self {
-        self.onClickSuggestionListView = suggestionListView
-        return self
-    }
-    
-    @discardableResult
-    public func setAIOptions(aiOptionsClosure: @escaping ((_ user: User?, _ group: Group?, _ controller: UIViewController?) -> [CometChatMessageComposerAction])) -> Self {
-        self.aiOptionsClosure = aiOptionsClosure
-        return self
-    }
-    
-    @discardableResult
-    public func set(user: User) -> Self {
-        viewModel.set(user: user)
-        DispatchQueue.main.async { [weak self] in
+        viewModel.reset  = { [weak self] status in
             guard let this = self else { return }
-            this.setupAuxiliaryButton()
-            this.viewModel.connect()
-        }
-        return self
-    }
-    
-    @discardableResult
-    public func set(group: Group) -> Self {
-        viewModel.set(group: group)
-        DispatchQueue.main.async { [weak self] in
-            guard let this = self else { return }
-            this.setupAuxiliaryButton()
-            this.viewModel.connect()
-        }
-        return self
-    }
-    
-    @discardableResult
-    public func preview(message: BaseMessage, mode: MessageComposerMode) -> Self {
-        switch mode {
-        case .edit: edit(message: message)
-        case .reply: reply(message: message)
-        default: break
-        }
-        return self
-    }
-    
-    @discardableResult
-    public func set(headerView: UIView) -> Self {
-        self.headerView.subviews.forEach({ $0.removeFromSuperview() })
-        self.headerView.addArrangedSubview(headerView)
-        UIView.animate(withDuration: 0.2) { [weak self] in
-            self?.controller?.view.layoutIfNeeded()
-        }
-        return self
-    }
-    
-    @discardableResult
-    public func set(footerView: UIView) -> Self {
-        self.footerView.subviews.forEach({ $0.removeFromSuperview() })
-        self.footerView.addArrangedSubview(footerView)
-        UIView.animate(withDuration: 0.2) { [weak self] in
-            self?.controller?.view.layoutIfNeeded()
-        }
-        return self
-    }
-    
-    @discardableResult
-    public func remove(headerView: Bool) -> Self {
-        if headerView {
-            self.headerView.subviews.forEach({ $0.removeFromSuperview() })
-            UIView.animate(withDuration: 0.2) { [weak self] in
-                self?.controller?.view.layoutIfNeeded()
+            this.textView.text = ""
+            this.sendButton.isEnabled = false
+            this.sendButton.backgroundColor = this.style.inactiveSendButtonImageBackgroundColor
+            this.selectedFormatters.removeAll()
+            this.endOnGoingTextFormatting()
+            this.removeLimitView()
+            this.messageComposerMode = .draft
+            if !this.messagePreview.isHidden {
+                this.hideEditPreview()
             }
         }
-        return self
-    }
-    
-    @discardableResult
-    public func remove(footerView: Bool) -> Self {
-        if footerView {
-            self.footerView.subviews.forEach({ $0.removeFromSuperview() })
-            UIView.animate(withDuration: 0.2) { [weak self] in
-                self?.controller?.view.layoutIfNeeded()
+        
+        viewModel.onMessageEdit = { [weak self] message in
+            guard let this = self else { return}
+            this.preview(message: message, mode: .edit)
+        }
+        
+        viewModel.isSoundForMessageEnabled = { [weak self]  in
+            guard let this = self else { return }
+            if !this.disableSoundForMessages {
+                CometChatSoundManager().play(sound: .outgoingMessage, customSound: this.customSoundForMessage)
             }
         }
-        return self
+        
+        viewModel.failure = { [weak self] error in
+            self?.onError?(error)
+        }
     }
-    
-    @discardableResult
-    public func set(parentMessageId: Int) ->  Self {
-        viewModel.parentMessageId = parentMessageId
-        return self
-    }
-    
 }
 
 
@@ -902,6 +818,7 @@ extension CometChatMessageComposer: CometChatUIEventListener {
             case .composerBottom:
                 controller?.view.endEditing(true)
                 set(footerView: view)
+                break
             case .messageListTop, .messageListBottom: break
             }
         }
@@ -912,8 +829,10 @@ extension CometChatMessageComposer: CometChatUIEventListener {
         switch alignment {
         case .composerTop:
             remove(headerView: true)
+            break
         case .composerBottom:
             remove(footerView: true)
+            break
         case .messageListTop, .messageListBottom: break
         }
     }

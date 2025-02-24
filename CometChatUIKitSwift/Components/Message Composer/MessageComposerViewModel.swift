@@ -156,6 +156,7 @@ extension MessageComposerViewModel {
                 case .success(let updatedTextMessage):
                     CometChatMessageEvents.ccMessageSent(message: updatedTextMessage, status: .success)
                 case .failure(let error):
+                    self.failure?(error)
                     textMessage.metaData = ["error": true]
                     CometChatMessageEvents.ccMessageSent(message: textMessage, status: .error)
                 }
@@ -223,6 +224,7 @@ extension MessageComposerViewModel {
                     // Broadcasting the message sent's event with sucess status.
                     CometChatMessageEvents.ccMessageSent(message: updatedTextMessage, status: .success)
                 case .failure(let error):
+                    self.failure?(error)
                     textMessage.metaData = ["error": true]
                     // Broadcasting the message error's event.
                     CometChatMessageEvents.ccMessageSent(message: textMessage, status: .error)
@@ -250,6 +252,7 @@ extension MessageComposerViewModel {
             case .success(let updatedMediaMessage):
                 CometChatMessageEvents.ccMessageSent(message: updatedMediaMessage, status: .success)
             case .failure(let error):
+                self.failure?(error)
                 mediaMessage.metaData = ["error": true]
                 CometChatMessageEvents.ccMessageSent(message: mediaMessage, status: .error)
             }
@@ -274,6 +277,7 @@ extension MessageComposerViewModel {
             case .success(let updatedMediaMessage):
                 CometChatMessageEvents.ccMessageSent(message: updatedMediaMessage, status: .success)
             case .failure(let error):
+                self.failure?(error)
                 mediaMessage.metaData = ["error": true]
                 CometChatMessageEvents.ccMessageSent(message: mediaMessage, status: .error)
             }
@@ -305,6 +309,7 @@ extension MessageComposerViewModel {
                 case .failure(let error):
                     DispatchQueue.main.async { [weak self] in
                         guard let this = self else { return }
+                        this.failure?(error)
                         this.reset?(true)
                         textMessage.metaData = ["error": true]
                         CometChatMessageEvents.ccMessageEdited(message: textMessage, status: .error)

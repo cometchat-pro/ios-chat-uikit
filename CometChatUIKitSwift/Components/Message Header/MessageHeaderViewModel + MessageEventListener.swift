@@ -16,6 +16,7 @@ extension MessageHeaderViewModel: CometChatMessageEventListener {
         switch typingDetails.receiverType {
         case .user:
             if typingDetails.sender?.uid == user?.uid && (user?.blockedByMe == false && user?.hasBlockedMe == false) {
+                onUpdate?()
                 if let name = typingDetails.sender?.name {
                     updateTypingStatus?(typingDetails.sender, true)
                     self.name = name
@@ -23,6 +24,7 @@ extension MessageHeaderViewModel: CometChatMessageEventListener {
             }
         case .group:
             if typingDetails.receiverID == group?.guid {
+                onUpdate?()
                 if let name = typingDetails.sender?.name {
                     updateTypingStatus?(typingDetails.sender, true)
                     self.name = name
@@ -36,11 +38,13 @@ extension MessageHeaderViewModel: CometChatMessageEventListener {
         switch typingDetails.receiverType {
         case .user:
             if typingDetails.sender?.uid == user?.uid  && (user?.blockedByMe == false && user?.hasBlockedMe == false)  {
+                onUpdate?()
                 updateTypingStatus?(typingDetails.sender, false)
             }
         case .group:
             if let group = group {
                 if typingDetails.receiverID == group.guid {
+                    onUpdate?()
                     updateTypingStatus?(typingDetails.sender, false)
                 }
             }

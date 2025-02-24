@@ -13,30 +13,35 @@ extension MessageHeaderViewModel: CometChatGroupEventListener {
     public func ccGroupMemberJoined(joinedUser: User, joinedGroup: Group) {
         if joinedGroup.guid == self.group?.guid {
             updateGroupCount?(joinedGroup)
+            onUpdate?()
         }
     }
     
     public func ccGroupMemberBanned(action: ActionMessage, bannedUser: User, bannedBy: User, bannedFrom: Group) {
         if bannedFrom.guid == self.group?.guid {
             updateGroupCount?(bannedFrom)
+            onUpdate?()
         }
     }
     
     public func ccGroupMemberAdded(messages: [ActionMessage], usersAdded: [User], groupAddedIn: Group, addedBy: User) {
         if groupAddedIn.guid == self.group?.guid {
             updateGroupCount?(groupAddedIn)
+            onUpdate?()
         }
     }
     
     public func ccGroupMemberKicked(action: ActionMessage, kickedUser: User, kickedBy: User, kickedFrom: Group) {
         if kickedFrom.guid == self.group?.guid {
             updateGroupCount?(kickedFrom)
+            onUpdate?()
         }
     }
     
     public func ccOwnershipChanged(group: Group, newOwner: GroupMember) {
         if group.guid == self.group?.guid {
             self.group = group
+            onUpdate?()
         }
     }
     
@@ -51,6 +56,7 @@ extension  MessageHeaderViewModel: CometChatGroupDelegate {
         if joinedGroup.guid == self.group?.guid {
             self.group = joinedGroup
             updateGroupCount?(joinedGroup)
+            onUpdate?()
         }
         
     }
@@ -61,6 +67,7 @@ extension  MessageHeaderViewModel: CometChatGroupDelegate {
         if leftGroup.guid == self.group?.guid {
             self.group = leftGroup
             updateGroupCount?(leftGroup)
+            onUpdate?()
         }
     }
     
@@ -72,6 +79,7 @@ extension  MessageHeaderViewModel: CometChatGroupDelegate {
         if kickedFrom.guid == self.group?.guid {
             self.group = kickedFrom
             updateGroupCount?(kickedFrom)
+            onUpdate?()
         }
     }
     
@@ -80,6 +88,7 @@ extension  MessageHeaderViewModel: CometChatGroupDelegate {
         if bannedFrom.guid == self.group?.guid {
             self.group = bannedFrom
             updateGroupCount?(bannedFrom)
+            onUpdate?()
         }
         print("MessageHeaderViewModel - SDK - onGroupMemberBanned")
     }
@@ -89,6 +98,7 @@ extension  MessageHeaderViewModel: CometChatGroupDelegate {
         if unbannedFrom.guid == self.group?.guid {
             self.group = unbannedFrom
             updateGroupCount?(unbannedFrom)
+            onUpdate?()
         }
         print("MessageHeaderViewModel - SDK - onGroupMemberUnbanned")
     }
@@ -99,6 +109,7 @@ extension  MessageHeaderViewModel: CometChatGroupDelegate {
             group.scope = CometChat.GroupMemberScopeType.from(string: scopeChangedTo) ?? group.scope
             action.receiver = group
             self.group = group
+            onUpdate?()
         }
         
         print("MessageHeaderViewModel - SDK - onGroupMemberScopeChanged")
@@ -110,6 +121,7 @@ extension  MessageHeaderViewModel: CometChatGroupDelegate {
         if addedTo.guid == self.group?.guid {
             self.group = addedTo
             updateGroupCount?(addedTo)
+            onUpdate?()
         }
     }
     

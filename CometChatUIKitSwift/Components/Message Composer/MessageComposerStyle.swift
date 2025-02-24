@@ -65,5 +65,6 @@ public struct MessageComposerStyle {
     public var infoBorderColor: UIColor = .clear
     public var infoBorderWidth: CGFloat = 0
 
+    public init() { }
     
 }

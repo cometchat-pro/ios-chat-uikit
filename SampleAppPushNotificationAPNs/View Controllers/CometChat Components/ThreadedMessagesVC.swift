@@ -34,9 +34,9 @@ class ThreadedMessagesVC: UIViewController {
         }
 
         messageListView.set(controller: self)
-        messageListView.setOnThreadRepliesClick { [weak self] message, messageBubbleView in
+        messageListView.set(onThreadRepliesClick: { [weak self] message, messageBubbleView in
             guard let this = self else { return }
-        }
+        })
         messageListView.translatesAutoresizingMaskIntoConstraints = false
         return messageListView
     }()

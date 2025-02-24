@@ -17,37 +17,46 @@ open class CometChatGroups: CometChatListBase {
 
     // MARK: - Declaration of View Properties
     // Closure for generating a subtitle view for a given group.
-    public var subtitle: ((_ group: Group?) -> UIView)?
+    var subtitle: ((_ group: Group?) -> UIView)?
 
     // Closure for generating a list item view for a given group.
-    public var listItemView: ((_ group: Group?) -> UIView)?
+    var listItemView: ((_ group: Group?) -> UIView)?
+    
+    var titleView: ((_ group: Group?) -> UIView)?
+    var trailingView: ((_ group: Group?) -> UIView)?
+    var leadingView: ((_ group: Group?) -> UIView)?
+    var addOptions: ((_ group: Group?) -> [CometChatGroupOption])?
+    
+    var onEmpty: (() -> Void)?
+    var onLoad: (([Group]) -> Void)?
 
     // Array to hold menu items for the navigation bar.
     public var menus: [UIBarButtonItem]?
 
     // Closure to generate options for a given group.
-    public var options: ((_ group: Group?) -> [CometChatGroupOption])?
+    var options: ((_ group: Group?) -> [CometChatGroupOption])?
 
     // Closure called when an item in the list is clicked, providing the group and index path.
-    public var onItemClick: ((_ group: Group, _ indexPath: IndexPath) -> Void)?
+    var onItemClick: ((_ group: Group, _ indexPath: IndexPath) -> Void)?
     
     // Closure called when an proceed clicked after selecting groups, providing the group.
     public var onSelectedItemProceed: ((_ group: [Group]) -> Void)?
 
     // Closure called when the back button is pressed.
-    public var onBack: (() -> Void)?
 
     // Closure called when a group is selected, providing the group and index path.
     public var onDidSelect: ((_ group: Group, _ indexPath: IndexPath) -> Void)?
 
     // Closure called on a long click of an item, providing the group and index path.
-    public var onItemLongClick: ((_ group: Group, _ indexPath: IndexPath) -> Void)?
+    var onItemLongClick: ((_ group: Group, _ indexPath: IndexPath) -> Void)?
 
     // Closure to handle errors, providing a CometChatException.
-    public var onError: ((_ error: CometChatException) -> Void)?
+    var onError: ((_ error: CometChatException) -> Void)?
 
     // Closure called when the create group button is clicked.
     public var joinPasswordProtectedGroup: ((_ group: Group) -> Void)?
+    
+    var onSelection: ((_ group: [Group]) -> Void)?
 
     // Public property to limit the number of selections allowed, with internal setter.
     public internal(set) var selectionLimit: Int?
@@ -67,6 +76,8 @@ open class CometChatGroups: CometChatListBase {
     public let groupsRequestBuilder : GroupsRequest.GroupsRequestBuilder = GroupsBuilder.getDefaultRequestBuilder()
     public var tickButton: [UIBarButtonItem]?
     public var joiningGroupAlert: UIAlertController?
+    
+    public var hideGroupType: Bool = false
 
     // A variable to track the number of selected cells.
     public var selectedCellCount: Int = 0 {
@@ -95,14 +106,19 @@ open class CometChatGroups: CometChatListBase {
         // Sets up the table view with a grouped style and enables refresh control.
         setupTableView(style: .plain, withRefreshControl: true)
         // Enables the search feature in the view.
-        showSearch = true
+        hideSearch = false
         // Registers custom cells for the table view.
         registerCells()
         // Displays a loading view while data is being fetched.
         showLoadingView()
     
         tableView.separatorStyle = .none
-        tableView.allowsMultipleSelection = true
+        
+        if selectionMode == .single{
+            tableView.allowsMultipleSelection = false
+        }else{
+            tableView.allowsMultipleSelection = true
+        }
     }
     
     override func onRefreshControlTriggered() {
@@ -197,7 +213,6 @@ open class CometChatGroups: CometChatListBase {
         
         // Reload the table to apply changes visually if necessary
         tableView.reloadData()
-        onBack?()
     }
 
     // Call this method when a cell is selected or deselected to update the count.
@@ -250,6 +265,11 @@ open class CometChatGroups: CometChatListBase {
                         this.tableView.restore()
                     }
                 }
+                
+                if let onLoad = this.onLoad?(this.viewModel.groups){
+                    onLoad
+                }
+                
                 // Hides the loading view once data has been processed.
                 this.removeLoadingView()
                 this.refreshControl.endRefreshing()
@@ -339,7 +359,7 @@ open class CometChatGroups: CometChatListBase {
         tableView.reloadData()
     }
     
-    public func showJoiningGroupAlert(for group: Group) {
+    open func showJoiningGroupAlert(for group: Group) {
         joiningGroupAlert = UIAlertController(title: nil, message: "Joining Group", preferredStyle: .alert)
         let loadingIndicator = UIActivityIndicatorView(frame: CGRect(x: 30, y: 7, width: 50, height: 50))
         loadingIndicator.hidesWhenStopped = true
@@ -350,7 +370,7 @@ open class CometChatGroups: CometChatListBase {
         self.present(joiningGroupAlert!, animated: true, completion: nil)
     }
     
-    public func hideJoiningGroupAlert(completion: @escaping (() -> Void)) {
+    open func hideJoiningGroupAlert(completion: @escaping (() -> Void)) {
         joiningGroupAlert?.dismiss(animated: true, completion: completion)
     }
 }
@@ -380,6 +400,10 @@ extension CometChatGroups {
         
         // Set the avatar for the group using the group icon or name
         listItem.set(avatarURL: group.icon ?? "", with: group.name)
+        
+        if let leadingView = leadingView?(group){
+            listItem.set(leadingView: leadingView)
+        }
 
         // Set the subtitle for the group, either using a custom subtitle or member count
         if let subTitleView = subtitle?(group) {
@@ -423,9 +447,14 @@ extension CometChatGroups {
         case .public:
             listItem.statusIndicator.isHidden = true
         case .private:
-            configureStatusIndicator(for: listItem, icon: style.privateGroupIcon, tintColor: style.privateGroupImageTintColor, backgroundColor: style.privateGroupImageBackgroundColor)
+            if !hideGroupType{
+                configureStatusIndicator(for: listItem, icon: style.privateGroupIcon, tintColor: style.privateGroupImageTintColor, backgroundColor: style.privateGroupImageBackgroundColor)
+            }
+            
         case .password:
-            configureStatusIndicator(for: listItem, icon: style.protectedGroupIcon, tintColor: .white, backgroundColor: style.passwordGroupImageBackgroundColor)
+            if !hideGroupType{
+                configureStatusIndicator(for: listItem, icon: style.protectedGroupIcon, tintColor: .white, backgroundColor: style.passwordGroupImageBackgroundColor)
+            }
         @unknown default:
             listItem.statusIndicator.isHidden = true
         }
@@ -503,6 +532,7 @@ extension CometChatGroups {
             } else {
                 selectGroup(group, at: indexPath)
             }
+            self.onSelection?(viewModel.selectedGroups)
         }
     }
 
@@ -528,6 +558,7 @@ extension CometChatGroups {
         let group = viewModel.isSearching ? viewModel.filteredGroups[indexPath.row] : viewModel.groups[indexPath.row]
         deselectGroup(group)
         updateSelectedCellCount(isSelected: false)
+        self.onSelection?(viewModel.selectedGroups)
     }
 
     // Provides swipe actions for each row (e.g., delete, options)
@@ -547,6 +578,20 @@ extension CometChatGroups {
                 actions.append(action)
             }
         }
+        
+        if let addOptions = addOptions?(group){
+            let customActions = addOptions.map { option -> UIContextualAction in
+                let action = UIContextualAction(style: .normal, title: option.title) { (action, sourceView, completionHandler) in
+                    option.onClick?(nil, indexPath.section, option, self)
+                    completionHandler(true)
+                }
+                action.backgroundColor = option.backgroundColor
+                action.image = option.icon?.withTintColor(option.iconTint ?? .white)
+                return action
+            }
+            actions.append(contentsOf: customActions)
+        }
+        
         return UISwipeActionsConfiguration(actions: actions)
     }
     

@@ -14,7 +14,7 @@ class HomeScreenViewController: UITabBarController {
     
     lazy var conversations: CometChatConversations = {
         let conversations = CometChatConversations()
-        conversations.set(itemClickListener: { [weak self] conversation, indexPath in
+        conversations.set(onItemClick: { [weak self] conversation, indexPath in
             let messages = MessagesVC()
             messages.group = (conversation.conversationWith as? Group)
             messages.user = (conversation.conversationWith as? CometChatSDK.User)
@@ -39,7 +39,7 @@ class HomeScreenViewController: UITabBarController {
     
     lazy var users: CometChatUsers = {
         let users = CometChatUsers()
-        users.setOnItemClick(onItemClick: { [weak self] users, indexPath in
+        users.set(onItemClick: { [weak self] users, indexPath in
             let messages = MessagesVC()
             messages.user = users
             self?.navigationController?.pushViewController(messages, animated: true)
@@ -71,11 +71,11 @@ class HomeScreenViewController: UITabBarController {
                 presentViewControllerBottomSheet(from: self, to: joinGroupVC, height: 378)
             }
         }
-        groups.setOnItemClick { [weak self] group, indexPath in
+        groups.set(onItemClick: { [weak self] group, indexPath in
             let messages = MessagesVC()
             messages.group = group
             self?.navigationController?.pushViewController(messages, animated: true)
-        }
+        })
 
 
         return groups

@@ -19,14 +19,14 @@ public class ProfanityDataMaskingExtensionDecorator: DataSourceDecorator {
         return super.getTextMessageBubble(messageText: filteredText, message: message, controller: controller, alignment: alignment, style: style, additionalConfiguration: additionalConfiguration)
     }
     
-    public override func getLastConversationMessage(conversation: Conversation, isDeletedMessagesHidden: Bool, additionalConfiguration: AdditionalConfiguration?) -> NSAttributedString? {
+    public override func getLastConversationMessage(conversation: Conversation, additionalConfiguration: AdditionalConfiguration?) -> NSAttributedString? {
         if let textMessage = conversation.lastMessage as? TextMessage, checkProfanityDataMasking(in: textMessage) {
             textMessage.text = ProfanityDataMaskingExtensionDecorator.getContentText(message: textMessage)
             if let textFormatter = additionalConfiguration?.textFormatter, !textFormatter.isEmpty {
                 return MessageUtils.processTextFormatter(message: textMessage, textFormatter: textFormatter, formattingType: .CONVERSATION_LIST)
             }
         }
-        return super.getLastConversationMessage(conversation: conversation, isDeletedMessagesHidden: isDeletedMessagesHidden, additionalConfiguration: additionalConfiguration)
+        return super.getLastConversationMessage(conversation: conversation, additionalConfiguration: additionalConfiguration)
     }
     
     public static func getContentText(message: TextMessage) -> String {

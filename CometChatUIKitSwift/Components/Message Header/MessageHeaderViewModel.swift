@@ -15,6 +15,7 @@ public protocol MessageHeaderViewModelProtocol {
     var updateGroupCount: ((Group) -> Void)? { get set }
     var updateTypingStatus: ((_ user: User?, _ isTyping: Bool) -> Void)? { get set }
     var updateUserStatus: ((Bool) -> Void)? { get set }
+    var onUpdate: (() -> Void)? { get set }
     var hideUserStatus : (()->Void)? {get set}
     var unHideUserStatus : (()->Void)? {get set}
     var listenerRandomId: TimeInterval { get set }
@@ -36,6 +37,7 @@ public class MessageHeaderViewModel: NSObject, MessageHeaderViewModelProtocol {
     public var listenerRandomId = Date().timeIntervalSince1970
     public var hideUserStatus : (()->Void)?
     public var unHideUserStatus : (()->Void)?
+    public var onUpdate: (() -> Void)? 
 
     public override init() {
         super.init()

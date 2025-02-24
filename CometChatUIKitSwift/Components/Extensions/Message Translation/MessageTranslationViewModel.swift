@@ -29,10 +29,12 @@ public class MessageTranslationViewModel: DataSourceDecorator {
         }
     }
     
-    public override func getTextMessageOptions(loggedInUser: User, messageObject: BaseMessage, controller: UIViewController?, group: Group?) -> [CometChatMessageOption]? {
-        var option = super.getTextMessageOptions(loggedInUser: loggedInUser, messageObject: messageObject, controller: controller, group: group)
-        let translationOption = textMessageOption(loggedInUser: loggedInUser, messageObject: messageObject, controller: controller, group: group)
-        option?.append(translationOption)
+    public override func getTextMessageOptions(loggedInUser: User, messageObject: BaseMessage, controller: UIViewController?, group: Group?, additionalConfiguration: AdditionalConfiguration) -> [CometChatMessageOption]? {
+        var option = super.getTextMessageOptions(loggedInUser: loggedInUser, messageObject: messageObject, controller: controller, group: group, additionalConfiguration: additionalConfiguration)
+        if !additionalConfiguration.hideTranslateMessageOption{
+            let translationOption = textMessageOption(loggedInUser: loggedInUser, messageObject: messageObject, controller: controller, group: group)
+            option?.append(translationOption)
+        }
         return option
     }
     

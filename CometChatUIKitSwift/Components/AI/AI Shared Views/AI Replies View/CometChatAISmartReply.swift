@@ -40,6 +40,7 @@ open class CometChatAISmartReply: UIView {
     public var tableView = SelfSizingTableView().withoutAutoresizingMaskConstraints()
     public var aiMessagesList = [String]()
     public var onAiMessageClicked: ((_ selectedReply: String) -> ())?
+    public var onAiCloseButtonClicked: (() -> ())?
     public var id: [String: Any]?
     public var loadingView: UIView!
     public var disableLoadingState: Bool = false
@@ -149,7 +150,7 @@ open class CometChatAISmartReply: UIView {
     }
     
     @objc func onCloseButtonClicked() {
-        CometChatUIEvents.hidePanel(id: id, alignment: .composerTop)
+        onAiCloseButtonClicked?()
     }
     
     private func updateTableViewHeight() {

@@ -192,7 +192,7 @@ class CallingExtensionDecorator: DataSourceDecorator {
             guard let this = self else { return UIView() }
             guard let call = message as? CustomMessage else { return UIView() }
             if (call.deletedAt != 0.0) {
-                if let deletedBubble = this.getDeleteMessageBubble(messageObject: call) {
+                if let deletedBubble = this.getDeleteMessageBubble(messageObject: call, additionalConfiguration: additionalConfiguration) {
                     return deletedBubble
                 }
             }
@@ -249,9 +249,10 @@ class CallingExtensionDecorator: DataSourceDecorator {
             
         }, bubbleView: nil, headerView: nil, footerView: nil) { message, alignment, controller in
             guard let message = message else { return nil }
-            return ChatConfigurator.getDataSource().getBottomView(message: message, controller: controller, alignment: alignment)
+            return ChatConfigurator.getDataSource().getBottomView(message: message, controller: controller, alignment: alignment, additionalConfiguration: additionalConfiguration)
         } options: { message, group, controller in
-            return nil
+            guard let message = message, let user = LoggedInUserInformation.getUser() else { return [] }
+            return ChatConfigurator.getDataSource().getCommonOptions(loggedInUser: user, messageObject: message, controller: controller, group: group, additionalConfiguration: additionalConfiguration)
         }
         
     }
@@ -267,7 +268,7 @@ class CallingExtensionDecorator: DataSourceDecorator {
         return "Call"
     }
     
-    override func getLastConversationMessage(conversation: Conversation, isDeletedMessagesHidden: Bool, additionalConfiguration: AdditionalConfiguration?) -> NSAttributedString? {
+    override func getLastConversationMessage(conversation: Conversation, additionalConfiguration: AdditionalConfiguration?) -> NSAttributedString? {
         
         if let lastMessage = conversation.lastMessage as? CustomMessage, lastMessage.type == conferenceCallTypeConstant, let additionalConfiguration {
             if lastMessage.sender?.uid == LoggedInUserInformation.getUID() {
@@ -307,28 +308,28 @@ class CallingExtensionDecorator: DataSourceDecorator {
             }
         }
 
-        return super.getLastConversationMessage(conversation: conversation, isDeletedMessagesHidden: isDeletedMessagesHidden, additionalConfiguration: additionalConfiguration)
+        return super.getLastConversationMessage(conversation: conversation, additionalConfiguration: additionalConfiguration)
     }
     
-    override func getAuxiliaryHeaderMenu(user: User?, group: Group?, controller: UIViewController?, id: [String: Any]?) -> UIStackView? {
-        if let user = user {
+    override func getAuxiliaryHeaderMenu(user: User?, group: Group?, controller: UIViewController?, id: [String: Any]?, additionalConfiguration: AdditionalConfiguration) -> UIStackView? {
+        if let user = user, user.blockedByMe != true {
             let callButton = CometChatCallButtons(width: 24, height: 24)
             callButton.set(controller: controller)
             callButton.set(user: user)
-            setupConfigurationFor(callButton: callButton)
+            setupConfigurationFor(callButton: callButton, additionalConfiguration: additionalConfiguration)
             return callButton
         }
         if let group = group {
             let callButton = CometChatCallButtons(width: 24, height: 24)
             callButton.set(controller: controller)
             callButton.set(group: group)
-            setupConfigurationFor(callButton: callButton)
+            setupConfigurationFor(callButton: callButton, additionalConfiguration: additionalConfiguration)
             return callButton
         }
         return nil
     }
     
-    private func setupConfigurationFor(callButton: CometChatCallButtons) {
+    private func setupConfigurationFor(callButton: CometChatCallButtons, additionalConfiguration: AdditionalConfiguration) {
         if let outgoingCallConfiguration = self.callingConfiguration?.outgoingCallConfiguration {
             callButton.set(outgoingCallConfiguration: outgoingCallConfiguration)
         }
@@ -336,27 +337,17 @@ class CallingExtensionDecorator: DataSourceDecorator {
         if let callButtonConfiguration = callingConfiguration?.callButtonConfiguration {
 
             if let hideVoiceCall = callButtonConfiguration.hideVoiceCall {
-                callButton.hide(voiceCall: hideVoiceCall)
+                callButton.voiceCallButton?.isHidden = hideVoiceCall
+                callButton.hideVoiceCallButton = hideVoiceCall
             }
             
             if let hideVideoCall = callButtonConfiguration.hideVideoCall {
-                callButton.hide(videoCall: hideVideoCall)
-            }
-            
-            if let callButtonsStyle = callButtonConfiguration.callButtonsStyle {
-                callButton.set(callButtonsStyle: callButtonsStyle)
-            }
-            
-            if let onVoiceCallClick = callButtonConfiguration.onVoiceCallClick {
-                callButton.setOnVoiceCallClick(onVoiceCallClick: onVoiceCallClick)
-            }
-            
-            if let onVideoCallClick = callButtonConfiguration.onVideoCallClick {
-                callButton.setOnVideoCallClick(onVideoCallClick: onVideoCallClick)
+                callButton.videoCallButton?.isHidden = hideVideoCall
+                callButton.hideVideoCallButton = hideVideoCall
             }
             
             if let onError = callButtonConfiguration.onError {
-                callButton.setOnError(onError: onError)
+                callButton.set(onError: onError)
             }
             
             if let callSettingsBuilder = callButtonConfiguration.callSettingsBuilder {
@@ -367,6 +358,16 @@ class CallingExtensionDecorator: DataSourceDecorator {
                 callButton.set(outgoingCallConfiguration: outgoingCallConfiguration)
             }
             
+        }
+        
+        if additionalConfiguration.hideVoiceCallButton{
+            callButton.voiceCallButton?.isHidden = true
+            callButton.hideVoiceCallButton = true
+        }
+        
+        if additionalConfiguration.hideVideoCallButton{
+            callButton.videoCallButton?.isHidden = true
+            callButton.hideVideoCallButton = true
         }
     }
     
@@ -391,6 +392,28 @@ extension CallingExtensionDecorator: CometChatCallDelegate {
                     }
                     if let callSettingsBuilder = incomingCallConfiguration.callSettingsBuilder {
                         incomingCall.set(callSettingsBuilder: callSettingsBuilder)
+                    }
+                    if let onCancelClick = incomingCallConfiguration.onCancelClick{
+                        incomingCall.set(onCancelClick: onCancelClick)
+                    }
+                    if let onAcceptClick = incomingCallConfiguration.onAcceptClick{
+                        incomingCall.set(onAcceptClick: onAcceptClick)
+                    }
+                    
+                    if let titleView = incomingCallConfiguration.titleView{
+                        incomingCall.set(titleView: titleView)
+                    }
+                    if let subtitleView = incomingCallConfiguration.subtitleView{
+                        incomingCall.set(subtitleView: subtitleView)
+                    }
+                    if let trailView = incomingCallConfiguration.trailView{
+                        incomingCall.set(trailView: trailView)
+                    }
+                    if let leadingView = incomingCallConfiguration.leadingView{
+                        incomingCall.set(leadingView: leadingView)
+                    }
+                    if let listItemView = incomingCallConfiguration.listItemView{
+                        incomingCall.set(listItemView: listItemView)
                     }
                 }
                 

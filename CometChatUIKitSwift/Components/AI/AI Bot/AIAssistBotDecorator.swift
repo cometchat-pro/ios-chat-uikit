@@ -33,56 +33,56 @@ class AIAssistBotDecorator: DataSourceDecorator {
         return ExtensionConstants.aiAssistBot
     }
     
-    override func getAIOptions(controller: UIViewController, user: User?, group: Group?, id: [String : Any]?, aiOptionsStyle: AIOptionsStyle?) -> [CometChatMessageComposerAction]? {
-        
-        self.controller = controller
-        self.user = user
-        self.group = group
-        
-        var superComposerAction = super.getAIOptions(controller: controller, user: user, group: group, id: id, aiOptionsStyle: aiOptionsStyle)
-        
-        let botComposerAction = CometChatMessageComposerAction(
-            id: getId(),
-            text: "",
-            startIcon: nil,
-            startIconTint: nil,
-            textColor: (
-                aiOptionsStyle?.textColor
-            ),
-            textFont: (
-                aiOptionsStyle?.textFont
-            ),
-            backgroundColour: (
-                aiOptionsStyle?.backgroundColor
-            ),
-            borderRadius: (
-                aiOptionsStyle?.cornerRadius
-            ),
-            borderWidth: (
-                aiOptionsStyle?.borderWidth
-            ),
-            borderColor: (
-                aiOptionsStyle?.borderColor
-            )
-        )
-        
-        if botList.count == 1 {
-            botComposerAction.text = "ASK".localize() + " " + (botList[0].name ?? "")
-            botComposerAction.onActionClick = { [weak self] in
-                self?.startAskBot(bot: self?.botList[0])
-            }
-        } else if botList.count > 1 {
-            botComposerAction.text = "ASK_AI_BOT".localize()
-            botComposerAction.onActionClick = { [weak self] in
-                self?.openBotListView(aiOptionsStyle: aiOptionsStyle)
-            }
-        } else {
-            return superComposerAction
-        }
-        
-        superComposerAction?.append(botComposerAction)
-        return superComposerAction
-    }
+//    override func getAIOptions(controller: UIViewController, user: User?, group: Group?, id: [String : Any]?, aiOptionsStyle: AIOptionsStyle?) -> [CometChatMessageComposerAction]? {
+//        
+//        self.controller = controller
+//        self.user = user
+//        self.group = group
+//        
+//        var superComposerAction = super.getAIOptions(controller: controller, user: user, group: group, id: id, aiOptionsStyle: aiOptionsStyle)
+//        
+//        let botComposerAction = CometChatMessageComposerAction(
+//            id: getId(),
+//            text: "",
+//            startIcon: nil,
+//            startIconTint: nil,
+//            textColor: (
+//                aiOptionsStyle?.textColor
+//            ),
+//            textFont: (
+//                aiOptionsStyle?.textFont
+//            ),
+//            backgroundColour: (
+//                aiOptionsStyle?.backgroundColor
+//            ),
+//            borderRadius: (
+//                aiOptionsStyle?.cornerRadius
+//            ),
+//            borderWidth: (
+//                aiOptionsStyle?.borderWidth
+//            ),
+//            borderColor: (
+//                aiOptionsStyle?.borderColor
+//            )
+//        )
+//        
+//        if botList.count == 1 {
+//            botComposerAction.text = "ASK".localize() + " " + (botList[0].name ?? "")
+//            botComposerAction.onActionClick = { [weak self] in
+//                self?.startAskBot(bot: self?.botList[0])
+//            }
+//        } else if botList.count > 1 {
+//            botComposerAction.text = "ASK_AI_BOT".localize()
+//            botComposerAction.onActionClick = { [weak self] in
+//                self?.openBotListView(aiOptionsStyle: aiOptionsStyle)
+//            }
+//        } else {
+//            return superComposerAction
+//        }
+//        
+//        superComposerAction?.append(botComposerAction)
+//        return superComposerAction
+//    }
     
     private func openBotListView(aiOptionsStyle: AIOptionsStyle?) {
         

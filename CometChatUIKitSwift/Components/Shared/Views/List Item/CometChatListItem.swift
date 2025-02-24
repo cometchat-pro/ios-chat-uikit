@@ -49,6 +49,16 @@ open class CometChatListItem: UITableViewCell {
         return stackView
     }()
     
+    public lazy var titleView: UIStackView = {
+        let stackView = UIStackView().withoutAutoresizingMaskConstraints()
+        return stackView
+    }()
+    
+    private lazy var leadingView: UIView = {
+        let view = UIView().withoutAutoresizingMaskConstraints()
+        return view
+    }()
+    
     private lazy var avatarView: UIView = {
         let view = UIView().withoutAutoresizingMaskConstraints()
         return view
@@ -144,11 +154,14 @@ open class CometChatListItem: UITableViewCell {
         
         container.addArrangedSubview(containerView)
         containerView.addArrangedSubview(check)
-        containerView.addArrangedSubview(avatarView)
+        containerView.addArrangedSubview(leadingView)
         containerView.addArrangedSubview(titleStack)
         
+        leadingView.embed(avatarView)
+        
         // Title and Subtitle Stack
-        titleStack.addArrangedSubview(titleLabel)
+        titleView.embed(titleLabel)
+        titleStack.addArrangedSubview(titleView)
         titleStack.addArrangedSubview(subTitleView)
         
         // Tail View
@@ -188,8 +201,10 @@ open class CometChatListItem: UITableViewCell {
         self.background.isUserInteractionEnabled = true
     }
     
-    @objc private func longPressed() {
-        onItemLongClick?()
+    @objc private func longPressed( gesture: UILongPressGestureRecognizer) {
+        if gesture.state == .began{
+            onItemLongClick?()
+        }
     }
     
     open override func setSelected(_ selected: Bool, animated: Bool) {
@@ -282,9 +297,25 @@ extension CometChatListItem{
     }
     
     @discardableResult
+    public func set(leadingView: UIView) -> Self {
+        self.leadingView.subviews.forEach({ $0.removeFromSuperview() })
+        self.leadingView.isHidden = false
+        self.leadingView.embed(leadingView)
+        return self
+    }
+    
+    @discardableResult
     public func set(title: String) -> Self {
         self.title = title
         self.titleLabel.text = title
+        return self
+    }
+    
+    @discardableResult
+    public func set(titleView: UIView) -> Self {
+        self.titleView.subviews.forEach({ $0.removeFromSuperview() })
+        self.titleView.isHidden = false
+        self.titleView.addArrangedSubview(titleView)
         return self
     }
     
@@ -325,6 +356,7 @@ extension CometChatListItem{
     @discardableResult
     public func hide(avatar: Bool) -> Self {
         self.avatarView.isHidden = avatar
+        self.leadingView.isHidden = avatar
         return self
     }
     

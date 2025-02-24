@@ -173,7 +173,7 @@ extension SmartReplyExtensionDecorator: CometChatMessageEventListener {
     
     func onTextMessageReceived(textMessage: TextMessage) {
         DispatchQueue.main.async {
-            self.presentSmartReplies(for: textMessage)
+//            self.presentSmartReplies(for: textMessage)
         }
     }
 }

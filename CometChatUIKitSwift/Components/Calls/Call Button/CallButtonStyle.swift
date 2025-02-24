@@ -26,4 +26,6 @@ public struct CallButtonStyle {
     public var audioCallButtonBorder: CGFloat?
     public var audioCallButtonBorderColor: UIColor?
     public var audioCallIcon = UIImage(systemName: "phone")?.withRenderingMode(.alwaysTemplate) ?? UIImage()
+    
+    public init() { }
 }

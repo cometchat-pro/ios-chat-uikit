@@ -174,4 +174,6 @@ public struct GroupsStyle: ListBaseStyle, ListItemStyle, SearchBarStyle {
 
     // Image for a protected group icon
     public var protectedGroupIcon: UIImage = UIImage(systemName: "lock.fill")?.withRenderingMode(.alwaysTemplate) ?? UIImage()
+    
+    public init() {}
 }

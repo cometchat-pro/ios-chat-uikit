@@ -40,7 +40,9 @@ open class MessageListViewModel: NSObject, MessageListViewModelProtocol {
     private var messagesRequest: MessagesRequest?
     private var filterMessagesRequest: MessagesRequest?
     var reload: (() -> Void)?
+    var onFirstMessageFetch: (() -> Void)?
     var newMessageReceived: ((_ message: BaseMessage) -> Void)?
+    var ccMessageSent: ((_ message: BaseMessage, _ status: MessageStatus) -> Void)?
     var appendAtIndex: ((_ section: Int, _ row: Int, _ baseMessage: BaseMessage, _ isNewSectionAdded: Bool) -> Void)?
     var updateAtIndex: ((Int, Int, BaseMessage) -> Void)?
     var deleteAtIndex: ((Int, Int, BaseMessage) -> Void)?
@@ -84,6 +86,47 @@ open class MessageListViewModel: NSObject, MessageListViewModelProtocol {
         }
     }
     
+    public var hideReplyInThreadOption: Bool = false{
+        didSet{
+            additionalConfiguration.hideReplyInThreadOption = hideReplyInThreadOption
+        }
+    }
+    public var hideTranslateMessageOption: Bool = false{
+        didSet{
+            additionalConfiguration.hideTranslateMessageOption = hideTranslateMessageOption
+        }
+    }
+    public var hideEditMessageOption: Bool = false{
+        didSet{
+            additionalConfiguration.hideEditMessageOption = hideEditMessageOption
+        }
+    }
+    public var hideDeleteMessageOption: Bool = false{
+        didSet{
+            additionalConfiguration.hideDeleteMessageOption = hideDeleteMessageOption
+        }
+    }
+    public var hideReactionOption: Bool = false{
+        didSet{
+            additionalConfiguration.hideReactionOption = hideReactionOption
+        }
+    }
+    public var hideMessagePrivatelyOption: Bool = false{
+        didSet{
+            additionalConfiguration.hideMessagePrivatelyOption = hideMessagePrivatelyOption
+        }
+    }
+    public var hideCopyMessageOption: Bool = false{
+        didSet{
+            additionalConfiguration.hideCopyMessageOption = hideCopyMessageOption
+        }
+    }
+    public var hideMessageInfoOption: Bool = false{
+        didSet{
+            additionalConfiguration.hideMessageInfoOption = hideMessageInfoOption
+        }
+    }
+    
     public override init() {
         messagesRequestBuilder = MessagesRequest.MessageRequestBuilder()
         super.init()
@@ -93,7 +136,7 @@ open class MessageListViewModel: NSObject, MessageListViewModelProtocol {
     func set(group: Group, messagesRequestBuilder: CometChatSDK.MessagesRequest.MessageRequestBuilder?, parentMessage: BaseMessage? = nil) {
         self.group = group
         self.parentMessage = parentMessage
-        self.messagesRequestBuilder = messagesRequestBuilder?.set(guid: group.guid) ?? MessagesRequest.MessageRequestBuilder()
+        self.messagesRequestBuilder = messagesRequestBuilder?.set(guid: group.guid).setParentMessageId(parentMessageId: parentMessage?.id ?? 0) ?? MessagesRequest.MessageRequestBuilder()
             .set(guid: group.guid)
             .hideReplies(hide: true)
             .setParentMessageId(parentMessageId: parentMessage?.id ?? 0)
@@ -105,7 +148,7 @@ open class MessageListViewModel: NSObject, MessageListViewModelProtocol {
     func set(user: User, messagesRequestBuilder: CometChatSDK.MessagesRequest.MessageRequestBuilder?, parentMessage: BaseMessage? = nil) {
         self.user = user
         self.parentMessage = parentMessage
-        self.messagesRequestBuilder = messagesRequestBuilder?.set(uid: user.uid ?? "") ?? MessagesRequest
+        self.messagesRequestBuilder = messagesRequestBuilder?.set(uid: user.uid ?? "").setParentMessageId(parentMessageId: parentMessage?.id ?? 0) ?? MessagesRequest
             .MessageRequestBuilder().set(uid: user.uid ?? "")
             .hideReplies(hide: true)
             .setParentMessageId(parentMessageId: parentMessage?.id ?? 0)
@@ -116,13 +159,16 @@ open class MessageListViewModel: NSObject, MessageListViewModelProtocol {
     
     func set(messagesRequestBuilder: CometChatSDK.MessagesRequest.MessageRequestBuilder) {
         if let user = user {
-            self.messagesRequestBuilder = messagesRequestBuilder.set(uid: user.uid ?? "")
+            self.messagesRequestBuilder = messagesRequestBuilder.set(uid: user.uid ?? "").setParentMessageId(parentMessageId: parentMessage?.id ?? 0)
         } else if let group = group {
-            self.messagesRequestBuilder = messagesRequestBuilder.set(guid: group.guid)
+            self.messagesRequestBuilder = messagesRequestBuilder.set(guid: group.guid).setParentMessageId(parentMessageId: parentMessage?.id ?? 0)
         }
     }
     
     func sendActiveChatChangeEvent() {
+        
+        onFirstMessageFetch?()
+        
         var id = [String:Any]()
         if let user = user {
             id["uid"] = user.uid
@@ -249,21 +295,8 @@ open class MessageListViewModel: NSObject, MessageListViewModelProtocol {
                             }
                         })
                     } else {
-                        DispatchQueue.main.async {
-                            var id = [String:Any]()
-                            if let user = this.user {
-                                id["uid"] = user.uid
-                            }
-                            if let group = this.group {
-                                id["guid"] = group.guid
-                            }
-                            if this.parentMessage?.id != 0 {
-                                id["parentMessageId"] = this.parentMessage?.id
-                            }
-                            if let unReadMessageCount = this.unReadMessageCount {
-                                id["unReadMessageCount"] = unReadMessageCount
-                            }
-                            CometChatUIEvents.ccActiveChatChanged(id: id, lastMessage: this.messages.last?.messages.last, user: this.user, group: this.group)
+                        DispatchQueue.main.async { [weak self] in
+                            self?.sendActiveChatChangeEvent()
                         }
                     }
                 case .failure(let error):
@@ -835,6 +868,7 @@ extension MessageListViewModel: CometChatMessageEventListener {
             
     public func ccMessageSent(message: CometChatSDK.BaseMessage, status: MessageStatus) {
         
+        ccMessageSent?(message, status)
         if status == .success { ifThreadedMessageUpdateCount(message: message) }
         if checkThreadedMessageBelongsToThisConversation(message: message) {
             switch status {
@@ -1047,7 +1081,8 @@ extension MessageListViewModel: CometChatUIEventListener {
             hideHeaderView?(true)
         case .messageListBottom:
             hideFooterView?(true)
-        case .composerTop, .composerBottom: break
+        case .composerTop, .composerBottom:
+            hideFooterView?(true)
         }
     }
     

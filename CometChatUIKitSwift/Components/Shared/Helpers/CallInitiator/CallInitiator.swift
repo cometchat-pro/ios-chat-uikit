@@ -20,7 +20,7 @@ extension UIViewController {
                 let outgoingCall = CometChatOutgoingCall()
                 outgoingCall.set(call: call)
                 outgoingCall.modalPresentationStyle = .fullScreen
-                outgoingCall.setOnCancelClick { call, controller in
+                outgoingCall.set(onCancelClick: { call, controller in
                     CometChat.rejectCall(sessionID: call?.sessionID ?? "", status: .cancelled) { call in
                         if let call = call {
                             CometChatCallEvents.ccCallRejected(call: call)
@@ -34,7 +34,7 @@ extension UIViewController {
                             controller?.dismiss(animated: true)
                         }
                     }
-                }
+                })
                
                 self.present(outgoingCall, animated: true)
             }
@@ -42,11 +42,8 @@ extension UIViewController {
             onError?(error)
             DispatchQueue.main.async {
                 let confirmDialog = CometChatDialog()
+                confirmDialog.set(title: "SOMETHING_WENT_WRONG_ERROR".localize())
                 confirmDialog.set(confirmButtonText: "OK".localize())
-                confirmDialog.set(cancelButtonText: "CANCEL".localize())
-                if let error = error {
-                    confirmDialog.set(error: error.errorDescription)
-                }
                 confirmDialog.open {
                 }
             }
@@ -62,7 +59,7 @@ extension UIViewController {
                 let outgoingCall = CometChatOutgoingCall()
                 outgoingCall.set(call: call)
                 outgoingCall.modalPresentationStyle = .fullScreen
-                outgoingCall.setOnCancelClick { call, controller in
+                outgoingCall.set(onCancelClick: { call, controller in
                     CometChat.rejectCall(sessionID: call?.sessionID ?? "", status: .cancelled) { call in
                         if let call = call {
                             CometChatCallEvents.ccCallRejected(call: call)
@@ -76,18 +73,15 @@ extension UIViewController {
                             controller?.dismiss(animated: true)
                         }
                     }
-                }
+                })
                 self.present(outgoingCall, animated: true)
             }
         } onError: { error in
             onError?(error)
             DispatchQueue.main.async {
                 let confirmDialog = CometChatDialog()
+                confirmDialog.set(title: "SOMETHING_WENT_WRONG_ERROR".localize())
                 confirmDialog.set(confirmButtonText: "OK".localize())
-                confirmDialog.set(cancelButtonText: "CANCEL".localize())
-                if let error = error {
-                    confirmDialog.set(error: error.errorDescription)
-                }
                 confirmDialog.open {
                 }
             }

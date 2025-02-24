@@ -35,16 +35,15 @@ public class UsersViewModel: UsersViewModelProtocol {
     var row: Int = -1 {
         didSet { reloadAtIndex?(row) }
     }
-    var users: [User] = [] {
-        didSet { reload?() }
-    }
+    var users: [User] = []
+    
     var filteredUsers: [User] = [] {
         didSet { reload?() }
     }
     var selectedUsers: [User] = []
     var isSearching: Bool = false
     var userRequestBuilder: UsersRequest.UsersRequestBuilder
-    private var userRequest: UsersRequest?
+    var userRequest: UsersRequest?
     private var filterUserRequest: UsersRequest?
     var isFetching = false
     var isFetchedAll = false
@@ -90,7 +89,6 @@ public class UsersViewModel: UsersViewModelProtocol {
                 }
                 this.isFetching = false
                 this.groupUsers(users: fetchedUsers)
-                this.reload?()
             case .failure(let error):
                 this.failure?(error)
                 this.isFetching = false

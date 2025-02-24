@@ -20,7 +20,7 @@ open class ReactionListDataModel {
         self.reaction = reaction
         self.count = count
         self.messageID = messageID
-        self.reactionsRequest = reactionsRequest?.build()
+        self.reactionsRequest = reactionsRequest?.set(reaction: reaction).build()
     }
     
     func fetchPrevious(onSuccess: @escaping () -> Void, onError: @escaping (_ error: CometChatSDK.CometChatException?) -> Void) {

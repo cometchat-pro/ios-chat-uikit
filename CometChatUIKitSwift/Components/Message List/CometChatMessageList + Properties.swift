@@ -11,8 +11,10 @@ import CometChatSDK
 
 extension CometChatMessageList {
     
+    //MARK: Data
     @discardableResult
     public func set(user: User, parentMessage: BaseMessage? = nil) -> Self {
+        self.hideAvatar = true
         self.viewModel.set(user: user, messagesRequestBuilder: self.messagesRequestBuilder, parentMessage: parentMessage)
         return self
     }
@@ -40,17 +42,71 @@ extension CometChatMessageList {
     }
     
     @discardableResult
-    public func disable(mentions: Bool) -> Self {
-        if mentions == true {
-            viewModel.textFormatters.enumerated().forEach { (index, formatter) in
-                if formatter.formatterID == CometChatMentionsFormatter().formatterID {
-                    viewModel.textFormatters.remove(at: index)
-                }
-            }
+    public func add(templates: [CometChatMessageTemplate]) -> Self {
+        for template in (templates) {
+            viewModel.templates["\(template.category)_\(template.type)"] = template
         }
         return self
     }
     
+    @discardableResult
+    public func set(reactionsRequestBuilder: ReactionsRequestBuilder) -> Self {
+        self.reactionsRequestBuilder = reactionsRequestBuilder
+        return self
+    }
+    
+    @discardableResult
+    public func set(parentMessageId: Int) ->  Self {
+        viewModel.parentMessage?.id = parentMessageId
+        if let user = viewModel.user{
+            viewModel.set(user: user, messagesRequestBuilder: self.messagesRequestBuilder)
+        }else{
+            viewModel.set(group: viewModel.group!, messagesRequestBuilder: self.messagesRequestBuilder)
+        }
+        
+        return self
+    }
+    
+    
+    //MARK: Event
+    @discardableResult
+    public func set(onReactionClick: ((_ reaction: ReactionCount, _ baseMessage: BaseMessage?) -> ())?) -> Self {
+        self.onReactionClick = onReactionClick
+        return self
+    }
+    
+    @discardableResult
+    public func set(onReactionListItemClick: ((_ messageReaction: CometChatSDK.Reaction, _ baseMessage: BaseMessage?) -> ())?) -> Self {
+        self.onReactionListItemClick = onReactionListItemClick
+        return self
+    }
+    
+    @discardableResult
+    public func set(onThreadRepliesClick: ((_ message: BaseMessage, _ template: CometChatMessageTemplate) -> ())?) -> Self {
+        self.onThreadRepliesClick = onThreadRepliesClick
+        return self
+    }
+    
+    @discardableResult
+    public func set(onError: @escaping ((_ error: CometChatException) -> Void)) -> Self {
+        self.onError = onError
+        return self
+    }
+    
+    @discardableResult
+    public func set(onLoad: @escaping (([BaseMessage]) -> Void)) -> Self {
+        self.onLoad = onLoad
+        return self
+    }
+    
+    @discardableResult
+    public func set(onEmpty: @escaping (() -> Void)) -> Self {
+        self.onEmpty = onEmpty
+        return self
+    }
+    
+    
+    //MARK: Configurations
     @discardableResult
     public func set(textFormatters: [CometChatTextFormatter]) -> Self {
         self.viewModel.textFormatters = textFormatters
@@ -64,35 +120,52 @@ extension CometChatMessageList {
     }
     
     @discardableResult
-    public func setDatePattern(datePattern: ((_ timestamp: Int?) -> String)?) -> Self {
+    public func set(datePattern: ((_ timestamp: Int?) -> String)?) -> Self {
         self.datePattern = datePattern
         return self
     }
     
     @discardableResult
-    public func setDateSeparatorPattern(dateSeparatorPattern: ((_ timestamp: Int?) -> String)?) -> Self {
+    public func set(timePattern: ((_ timestamp: Int?) -> String)?) -> Self {
+        self.timePattern = timePattern
+        return self
+    }
+    
+    @discardableResult
+    public func set(dateSeparatorPattern: ((_ timestamp: Int?) -> String)?) -> Self {
         self.dateSeparatorPattern = dateSeparatorPattern
         return self
     }
     
     @discardableResult
-    public func set(newMessageIndicatorStyle: NewMessageIndicatorStyle) -> Self {
-        self.newMessageIndicatorStyle = newMessageIndicatorStyle
+    public func scrollToBottom(isAnimated: Bool = true) -> Self {
+        if tableView.numberOfSections > 0 && tableView.numberOfRows(inSection: 0) > 0 {
+            self.tableView.scrollToRow(at: IndexPath(row: 0, section: 0), at: .bottom, animated: isAnimated)
+        }
         return self
     }
     
     @discardableResult
-    public func set(messageInformationConfiguration: MessageInformationConfiguration)  ->  Self {
-        self.messageInformationConfiguration = messageInformationConfiguration
+    public func set(messageAlignment: MessageListAlignment) -> Self {
+        self.messageAlignment = messageAlignment
         return self
     }
     
     @discardableResult
-    public func setOnThreadRepliesClick(onThreadRepliesClick: ((_ message: BaseMessage, _ template: CometChatMessageTemplate) -> ())?) -> Self {
-        self.onThreadRepliesClick = onThreadRepliesClick
+    public func set(smartRepliesKeywords: [String]) -> Self {
+        self.smartRepliesKeywords = smartRepliesKeywords
         return self
     }
     
+    @discardableResult
+    public func set(smartRepliesDelayDuration: Int) -> Self {
+        self.smartRepliesDelayDuration = smartRepliesDelayDuration  
+        return self
+    }
+    
+    
+    
+    //MARK: Overrides
     @discardableResult
     public func set(headerView: UIView?) ->  Self {
         headerViewContainer.subviews.forEach({ $0.removeFromSuperview() })
@@ -135,29 +208,32 @@ extension CometChatMessageList {
     }
     
     @discardableResult
-    public func disable(reactions: Bool) -> Self {
-        self.disableReactions = reactions
-        self.viewModel.disable(reactions: reactions)
+    public func set(loadingView: UIView) ->  Self {
+        self.loadingStateView = loadingView
         return self
     }
     
     @discardableResult
-    public func set(reactionsConfiguration: ReactionsConfiguration?) -> Self {
-        self.reactionsConfiguration = reactionsConfiguration
+    public func set(errorView: UIView) ->  Self {
+        self.errorStateView = errorView
         return self
     }
     
     @discardableResult
-    public func set(reactionListConfiguration: ReactionListConfiguration?) -> Self {
-        self.reactionListConfiguration = reactionListConfiguration
+    public func set(emptyView: UIView) ->  Self {
+        self.emptyStateView = emptyView
         return self
     }
     
-    @discardableResult
-    public func set(quickReactionsConfiguration: QuickReactionsConfiguration?) -> Self {
-        self.quickReactionsConfiguration = quickReactionsConfiguration
-        return self
-    }
+    
+    
+    
+    
+    
+    
+    
+    
+    
     
     @discardableResult
     public func set(controller: UIViewController) -> Self {
@@ -237,13 +313,7 @@ extension CometChatMessageList {
         return self
     }
     
-    @discardableResult
-    public func scrollToBottom(isAnimated: Bool = true) -> Self {
-        if tableView.numberOfSections > 0 && tableView.numberOfRows(inSection: 0) > 0 {
-            self.tableView.scrollToRow(at: IndexPath(row: 0, section: 0), at: .bottom, animated: isAnimated)
-        }
-        return self
-    }
+    
     
     @discardableResult
     public func isEmpty() -> Bool {

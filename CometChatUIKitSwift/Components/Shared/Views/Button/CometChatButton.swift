@@ -110,7 +110,7 @@ public class VerticalButton: UIButton {
         let titleSize = self.titleLabel?.frame.size ?? .zero
         let imageSize = self.imageView?.frame.size  ?? .zero
         let spacing: CGFloat = 6.0
-        self.imageEdgeInsets = UIEdgeInsets(top: -(titleSize.height + spacing),left: 0, bottom: 0, right:  -titleSize.width)
+        self.imageEdgeInsets = UIEdgeInsets(top: -(titleSize.height + spacing),left: 0, bottom: 5, right:  -titleSize.width)
         self.titleEdgeInsets = UIEdgeInsets(top: 0, left: -imageSize.width, bottom: -(imageSize.height + spacing), right: 0)
     }
 }

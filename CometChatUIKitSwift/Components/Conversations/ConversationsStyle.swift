@@ -9,9 +9,9 @@ import UIKit
 
 public struct ConversationsStyle: ListBaseStyle, ListItemStyle {
     
-    public var listItemSelectedImage: UIImage = UIImage()
+    public var listItemSelectedImage: UIImage = UIImage(systemName: "checkmark.square.fill")?.withRenderingMode(.alwaysTemplate) ?? UIImage()
     
-    public var listItemDeSelectedImage: UIImage = UIImage()
+    public var listItemDeSelectedImage: UIImage = UIImage(systemName: "square")?.withRenderingMode(.alwaysTemplate) ?? UIImage()
     
     public var backgroundColor: UIColor = CometChatTheme.backgroundColor01
     
@@ -78,9 +78,7 @@ public struct ConversationsStyle: ListBaseStyle, ListItemStyle {
     public var listItemBorderWidth: CGFloat = 0
     
     public var listItemBorderColor: UIColor = .clear
-    
-    public var listItemSelectionImageTint: UIColor = CometChatTheme.backgroundColor03
-    
+        
     public var listItemDeSelectedImageTint: UIColor = CometChatTheme.borderColorDefault
     
     public var listItemCornerRadius: CometChatCornerStyle = .init(cornerRadius: 0)
@@ -98,5 +96,10 @@ public struct ConversationsStyle: ListBaseStyle, ListItemStyle {
     public var shimmerColor1: UIColor?
     
     public var shimmerColor2: UIColor?
+    
+    public var listItemSelectionImageTint: UIColor = CometChatTheme.iconColorHighlight
+            
+    
+    public init() { }
     
 }

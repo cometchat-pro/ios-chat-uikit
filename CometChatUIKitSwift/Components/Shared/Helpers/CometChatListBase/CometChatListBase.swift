@@ -43,15 +43,17 @@ open class CometChatListBase: UIViewController, StateManagement {
     var searchPlaceholderText: String = "SEARCH".localize()
     var searchIcon = UIImage(systemName: "magnifyingglass")?.withRenderingMode(.alwaysTemplate)
     var searchClearIcon =  UIImage(systemName: "xmark.circle.fill")?.withRenderingMode(.alwaysTemplate)
-    public var showSearch: Bool = false {
+    public var hideNavigationBar: Bool = false
+    public var hideSearch: Bool = true {
         didSet {
-            setupSearchBar()
+            if hideSearch == false{
+                setupSearchBar()
+            }
         }
     }
     
     //MARK: - loading view
     public var loadingView: UIView!
-    public var disableLoadingState: Bool = false
     var isLoadingViewVisible = false
     
     //MARK: - Error Views
@@ -97,11 +99,11 @@ open class CometChatListBase: UIViewController, StateManagement {
             (errorStateView as? StateView)?.subtitle = errorStateSubTitleText
         }
     }
-    public var disableErrorState: Bool = false
+    public var hideErrorView: Bool = false
     public var isErrorStateVisible: Bool = false
     
     //MARK: - Other Public Variables
-    public var hideSeparator = false {
+    var hideSeparator = false {
         didSet {
             tableView.separatorStyle = hideSeparator ? .none : .singleLine
         }
@@ -118,7 +120,8 @@ open class CometChatListBase: UIViewController, StateManagement {
     public var rightBarButtonItem: [UIBarButtonItem] = []
     public var navigationTitleText = ""
     public var isNavigationTranslucent = true
-    public var isNavigationBackButtonHidden = false
+    public var hideBackButton = true
+    public var hideLoadingState: Bool = false
     public var prefersLargeTitles = true
     private var searchWorkItem: DispatchWorkItem? = nil
     public lazy var refreshControl: UIRefreshControl = {
@@ -126,6 +129,8 @@ open class CometChatListBase: UIViewController, StateManagement {
         refreshControl.addTarget(self, action: #selector(onRefreshControlTriggered), for: .valueChanged)
         return refreshControl
     }()
+    
+    var onBack: (() -> Void)?
 
     
     //MARK: - LIFE CYCLE FUNCTION
@@ -136,8 +141,15 @@ open class CometChatListBase: UIViewController, StateManagement {
     
     open override func viewWillAppear(_ animated: Bool) {
         super.viewWillAppear(animated)
-        setupNavigationBar()
-        if showSearch {
+        if !hideNavigationBar{
+            setupNavigationBar()
+        }else{
+            if let navigationController = navigationController{
+                self.navigationController?.navigationBar.isHidden = true
+            }
+        }
+        
+        if !hideSearch {
             setupSearchBar()
         }
         setupStyle()
@@ -182,15 +194,6 @@ open class CometChatListBase: UIViewController, StateManagement {
         self.view.layer.insertSublayer(gradientLayer, at:0)
     }
     
-    public func searchIsEmpty() -> Bool {
-        return searchController.searchBar.text?.isEmpty ?? true
-    }
-    
-    public func isSearching() -> Bool {
-        let searchBarScopeIsFiltering = searchController.searchBar.selectedScopeButtonIndex != 0
-        return searchController.isActive && (!searchIsEmpty() || searchBarScopeIsFiltering)
-    }
-    
     open func showFooterIndicator() {
         tableView.tableFooterView = ActivityIndicator.show()
         tableView.tableFooterView?.isHidden = false
@@ -202,7 +205,7 @@ open class CometChatListBase: UIViewController, StateManagement {
     }
     
     open func showLoadingView() {
-        if disableLoadingState { return }
+        if hideLoadingState { return }
         (loadingView as? CometChatShimmerView)?.startShimmer()
         isLoadingViewVisible = true
         view.embed(loadingView)
@@ -224,7 +227,7 @@ open class CometChatListBase: UIViewController, StateManagement {
     
     /// This Function will show error view
     open func showErrorView() {
-        if disableErrorState { return }
+        if hideErrorView { return }
         isErrorStateVisible = true
         view.addSubview(errorStateView)
         errorStateView.pin(anchors: [.centerX, .centerY], to: view)
@@ -272,7 +275,7 @@ open class CometChatListBase: UIViewController, StateManagement {
     /// This function will set style for search bar from the component's style variable
     open func styleSearchBar() {
       
-        if !showSearch { return }
+        if hideSearch { return }
 
 
         if let searchTintColor = searchStyle?.searchTintColor{
@@ -348,10 +351,18 @@ open class CometChatListBase: UIViewController, StateManagement {
         if let navigationController = navigationController {
             navigationController.title = navigationTitleText
             navigationController.navigationBar.isTranslucent = isNavigationTranslucent
-            navigationItem.hidesBackButton = isNavigationBackButtonHidden
+            navigationItem.hidesBackButton = hideBackButton
             navigationItem.rightBarButtonItems = rightBarButtonItem
             navigationItem.leftBarButtonItems = leftBarButtonItem
-            
+            if !hideBackButton{
+                if #available(iOS 16.0, *) {
+                    navigationItem.backAction = UIAction { [weak self] _ in
+                        self?.onBack?()
+                    }
+                } else {
+                    navigationItem.backBarButtonItem = UIBarButtonItem(image: UIImage(systemName: "arrow.left"), style: .plain, target: self, action: #selector(addBackPress))
+                }
+            }
             if prefersLargeTitles {
                 navigationController.navigationBar.prefersLargeTitles = true
                 navigationItem.largeTitleDisplayMode = .always
@@ -360,6 +371,10 @@ open class CometChatListBase: UIViewController, StateManagement {
                 navigationItem.largeTitleDisplayMode = .never
             }
         }
+    }
+    
+   @objc func addBackPress(){
+       self.onBack?()
     }
     
     /// This will all add style in navigation bar for the component
@@ -427,6 +442,14 @@ extension CometChatListBase : UISearchBarDelegate, UISearchResultsUpdating {
         }
         searchWorkItem = dataSearchItem
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.2, execute: dataSearchItem)
+    }
+    
+    public func searchBarTextDidBeginEditing(_ searchBar: UISearchBar) {
+        DispatchQueue.main.async { [weak self] in
+            if let cancelButton = self?.searchController.searchBar.value(forKey: "cancelButton") as? UIButton, let searchBarCancelIconTintColor = self?.searchStyle?.searchBarCancelIconTintColor {
+                cancelButton.setTitleColor(searchBarCancelIconTintColor, for: .normal)
+            }
+        }
     }
 }
 
@@ -508,6 +531,50 @@ extension CometChatListBase: UITableViewDelegate, UITableViewDataSource {
     /* Also see -[UIScrollView adjustedContentInsetDidChange]
      */
     open func scrollViewDidChangeAdjustedContentInset(_ scrollView: UIScrollView) {}
+    
+}
+
+//
+extension CometChatListBase {
+    
+    public func searchIsEmpty() -> Bool {
+        return searchController.searchBar.text?.isEmpty ?? true
+    }
+    
+    public func isSearching() -> Bool {
+        let searchBarScopeIsFiltering = searchController.searchBar.selectedScopeButtonIndex != 0
+        return searchController.isActive && (!searchIsEmpty() || searchBarScopeIsFiltering)
+    }
+    
+    @discardableResult
+    public func set(selectionMode: SelectionMode) -> Self {
+        self.selectionMode = selectionMode
+      return self
+    }
+    
+    @discardableResult
+    public func set(loadingView: UIView) -> Self {
+        self.loadingView = loadingView
+        return self
+    }
+    
+    @discardableResult
+    public func set(errorView: UIView) -> Self {
+        self.errorStateView = errorView
+        return self
+    }
+    
+    @discardableResult
+    public func set(emptyView: UIView) -> Self {
+        self.emptyStateView = emptyView
+        return self
+    }
+    
+    @discardableResult
+    public func set(onBack: @escaping (() -> Void)) -> Self {
+        self.onBack = onBack
+        return self
+    }
     
 }
 

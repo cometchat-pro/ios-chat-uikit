@@ -20,6 +20,12 @@ import CometChatSDK
         return button
     }()
     
+    public lazy var leadingConatinerView: UIView = {
+        let view = UIView().withoutAutoresizingMaskConstraints()
+        view.backgroundColor = .clear
+        return view
+    }()
+    
     public lazy var backButtonView: UIButton = {
         let button = UIButton().withoutAutoresizingMaskConstraints()
         button.addTarget(self, action: #selector(didBackIconPressed), for: .touchUpInside)
@@ -28,7 +34,7 @@ import CometChatSDK
     }()
     
     public lazy var avatar: CometChatAvatar = {
-        let avatar = CometChatAvatar(frame: .infinite).withoutAutoresizingMaskConstraints()
+        let avatar = CometChatAvatar(frame: .zero).withoutAutoresizingMaskConstraints()
         avatar.pin(anchors: [.height, .width], to: 40)
         return avatar
     }()
@@ -49,7 +55,7 @@ import CometChatSDK
         return label
     }()
     
-    public lazy var subtitleView: UIView = {
+    public lazy var subtitle: UIView = {
         let view = UIView().withoutAutoresizingMaskConstraints()
         view.embed(subtitleLabel, insets: .init(top: 1, leading: 0, bottom: 0, trailing: 0))
         return view
@@ -57,6 +63,11 @@ import CometChatSDK
     
     public lazy var tailView: UIStackView = {
         let view = UIStackView().withoutAutoresizingMaskConstraints()
+        view.distribution = .fill
+        view.alignment = .fill
+        view.spacing = CometChatSpacing.Spacing.s4
+        view.addArrangedSubview(UIView())
+        view.widthAnchor.constraint(lessThanOrEqualToConstant: 120).isActive = true
         return view
     }()
     
@@ -70,8 +81,7 @@ import CometChatSDK
     private var disableTyping: Bool = false
     private var hideBackIcon: Bool = false
     private var disableUsersPresence: Bool = false
-    private weak var controller: UIViewController?
-    public lazy var avatarStyle = CometChatAvatar.style
+    weak var controller: UIViewController?
     
     //MARK: GLOBEL STYLING
     public static var style = MessageHeaderStyle() // global styling
@@ -85,13 +95,50 @@ import CometChatSDK
         style.textFont = CometChatTypography.Caption1.regular
         return style
     }()
+    public static var avatarStyle = {
+        var style = CometChatAvatar.style
+        return style
+    }()
     
     public var titleContainerStackView = UIStackView().withoutAutoresizingMaskConstraints()
+    
+    var onError: ((_ error: CometChatException) -> Void)?
+    var onBack: (() -> Void)?
+    var listItemView: ((_ user: User?, _ group: Group?) -> UIView)?
+    var leadingView: ((_ user: User?, _ group: Group?) -> UIView)?
+    var titleView: ((_ user: User?, _ group: Group?) -> UIView)?
+    var subtitleView: ((_ user: User?, _ group: Group?) -> UIView)?
+    var trailView: ((_ user: User?, _ group: Group?) -> UIView)?
+    var auxiliaryView: ((_ user: User?, _ group: Group?) -> UIView)?
     
     //MARK: LOCAL STYLING
     public lazy var style = CometChatMessageHeader.style
     public lazy var statusIndicatorStyle = CometChatMessageHeader.statusIndicatorStyle
     public lazy var typingIndicatorStyle = CometChatMessageHeader.typingIndicatorStyle
+    
+    public var additionalConfiguration = AdditionalConfiguration()
+    
+    public var hideBackButton: Bool = false {
+        didSet {
+            updateUI()
+        }
+    }
+    public var hideUserStatus: Bool = false {
+        didSet {
+            updateUI()
+        }
+    }
+    public var hideVideoCallButton: Bool = false{
+        didSet{
+            additionalConfiguration.hideVideoCallButton = hideVideoCallButton
+        }
+    }
+    public var hideVoiceCallButton: Bool = false{
+        didSet{
+            additionalConfiguration.hideVoiceCallButton = hideVoiceCallButton
+        }
+    }
+    public lazy var avatarStyle = CometChatMessageHeader.avatarStyle
 
     // MARK: - ViewModel
     open var viewModel: MessageHeaderViewModelProtocol = MessageHeaderViewModel()
@@ -106,6 +153,71 @@ import CometChatSDK
         if newWindow != nil{
             setupStyle()
             connect()
+            updateUI()
+            addCustomViews()
+        }
+    }
+    
+    func addCustomViews(){
+        
+        self.tailView.subviews.forEach({ $0.removeFromSuperview() })
+        if let auxiliaryView = auxiliaryView?(viewModel.user, viewModel.group) {
+            self.tailView.addArrangedSubview(auxiliaryView)
+        } else {
+            if let auxiliaryHeaderMenu = CometChatUIKit.getDataSource().getAuxiliaryHeaderMenu(user: viewModel.user, group: viewModel.group, controller: controller, id: nil, additionalConfiguration: additionalConfiguration){
+                auxiliaryHeaderMenu.distribution = .fillEqually
+                self.tailView.addArrangedSubview(auxiliaryHeaderMenu)
+            }
+        }
+        
+        if let trailView = trailView?(viewModel.user, viewModel.group){
+            self.tailView.alignment = .center
+            self.tailView.addArrangedSubview(trailView)
+        }
+        
+        if let titleView = titleView?(viewModel.user, viewModel.group){
+            self.titleLabelView.subviews.forEach({$0.removeFromSuperview()})
+            self.titleLabelView.embed(titleView)
+        }
+        
+        if let subtitleView = subtitleView?(viewModel.user, viewModel.group){
+            self.subtitle.subviews.forEach({$0.removeFromSuperview()})
+            self.subtitle.embed(subtitleView)
+        }
+        
+        if let leadingView = leadingView?(viewModel.user, viewModel.group){
+            self.leadingConatinerView.subviews.forEach({ $0.removeFromSuperview() })
+            var constraintsToActivate = [NSLayoutConstraint]()
+            self.leadingConatinerView.addSubview(leadingView)
+            constraintsToActivate += [
+                leadingView.leadingAnchor.pin(equalTo: leadingConatinerView.leadingAnchor),
+                leadingView.topAnchor.pin(equalTo: leadingConatinerView.topAnchor),
+                leadingView.bottomAnchor.pin(equalTo: leadingConatinerView.bottomAnchor),
+                leadingView.trailingAnchor.pin(equalTo: leadingConatinerView.trailingAnchor),
+                leadingView.widthAnchor.constraint(equalToConstant: 100)
+            ]
+            NSLayoutConstraint.activate(constraintsToActivate)
+        }
+        
+        if let listItemView = listItemView?(viewModel.user, viewModel.group){
+            listItemView.translatesAutoresizingMaskIntoConstraints = false
+            self.embed(listItemView)
+            self.bringSubviewToFront(listItemView)
+        }
+    }
+    
+    func updateUI(){
+        if hideBackButton{
+            backButtonView.removeFromSuperview()
+            if leadingConatinerView.subviews.contains(avatar){
+                avatar.leadingAnchor.pin(equalTo: leadingConatinerView.leadingAnchor, constant: 16).isActive = true
+                avatar.centerYAnchor.pin(equalTo: titleContainerStackView.centerYAnchor).isActive = true
+            }
+        }
+        
+        if hideUserStatus{
+            self.subtitle.isHidden = true
+            self.subtitle.subviews.forEach({ $0.removeFromSuperview() })
         }
     }
 
@@ -122,24 +234,34 @@ import CometChatSDK
         
         var constraintsToActivate = [NSLayoutConstraint]()
         
-        addSubview(backButtonView)
+        addSubview(leadingConatinerView)
+        constraintsToActivate += [
+            leadingConatinerView.leadingAnchor.pin(equalTo: leadingAnchor),
+            leadingConatinerView.topAnchor.pin(equalTo: topAnchor),
+            leadingConatinerView.bottomAnchor.pin(equalTo: bottomAnchor),
+            leadingConatinerView.centerYAnchor.pin(equalTo: centerYAnchor),
+            leadingConatinerView.trailingAnchor.pin(equalTo: titleContainerStackView.leadingAnchor, constant: -CometChatSpacing.Padding.p3)
+        ]
+        
+        leadingConatinerView.addSubview(backButtonView)
         backButtonView.addSubview(backButton)
         constraintsToActivate += [
-            backButtonView.leadingAnchor.pin(equalTo: leadingAnchor),
-            backButtonView.topAnchor.pin(equalTo: topAnchor),
-            backButtonView.bottomAnchor.pin(equalTo: bottomAnchor),
+            backButtonView.leadingAnchor.pin(equalTo: leadingConatinerView.leadingAnchor),
+            backButtonView.topAnchor.pin(equalTo: leadingConatinerView.topAnchor),
+            backButtonView.bottomAnchor.pin(equalTo: leadingConatinerView.bottomAnchor),
             backButton.leadingAnchor.pin(equalTo: backButtonView.leadingAnchor, constant: CometChatSpacing.Padding.p4),
             backButton.trailingAnchor.pin(equalTo: backButtonView.trailingAnchor, constant: -CometChatSpacing.Padding.p3),
-            backButton.centerYAnchor.pin(equalTo: centerYAnchor)
+            backButton.centerYAnchor.pin(equalTo: leadingConatinerView.centerYAnchor)
         ]
         
-        addSubview(avatar)
+        leadingConatinerView.addSubview(avatar)
         constraintsToActivate += [
             avatar.leadingAnchor.pin(equalTo: backButtonView.trailingAnchor),
-            avatar.centerYAnchor.pin(equalTo: backButton.centerYAnchor)
+            avatar.centerYAnchor.pin(equalTo: backButton.centerYAnchor),
+            avatar.trailingAnchor.pin(equalTo: leadingConatinerView.trailingAnchor, constant: 0)
         ]
         
-        addSubview(statusIndicator)
+        leadingConatinerView.addSubview(statusIndicator)
         constraintsToActivate += [
             statusIndicator.trailingAnchor.pin(equalTo: avatar.trailingAnchor, constant: -1),
             statusIndicator.bottomAnchor.pin(equalTo: avatar.bottomAnchor, constant: -1)
@@ -150,11 +272,10 @@ import CometChatSDK
         titleContainerStackView.alignment = .leading
         addSubview(titleContainerStackView)
         titleContainerStackView.addArrangedSubview(titleLabelView)
-        titleContainerStackView.addArrangedSubview(subtitleView)
+        titleContainerStackView.addArrangedSubview(subtitle)
         
         constraintsToActivate += [
-            titleContainerStackView.leadingAnchor.pin(equalTo: avatar.trailingAnchor, constant: CometChatSpacing.Padding.p3),
-            titleContainerStackView.centerYAnchor.constraint(equalTo: avatar.centerYAnchor)
+            titleContainerStackView.centerYAnchor.constraint(equalTo: leadingConatinerView.centerYAnchor)
         ]
         
         addSubview(tailView)
@@ -166,6 +287,8 @@ import CometChatSDK
         ]
         
         NSLayoutConstraint.activate(constraintsToActivate)
+        
+        
     }
 
     open func setupStyle() {
@@ -187,6 +310,7 @@ import CometChatSDK
         updateUserStatus(viewModel.user?.status == .online ? true : false)
         configureGroupStatusIndicatorStyling()
         configureGroupSubtitleStyling()
+        avatar.style = avatarStyle
     }
 
     open func configure(user: User) {
@@ -247,19 +371,24 @@ import CometChatSDK
 
     // MARK: - Updates
     public func setupViewModel() {
+        
+        viewModel.onUpdate = { [weak self] in
+            self?.addCustomViews()
+        }
+        
         viewModel.updateUserStatus = { [weak self] isOnline in
             self?.updateUserStatus(isOnline)
         }
         
         viewModel.hideUserStatus = { [weak self] in
-            self?.subtitleView.isHidden = true
-            self?.subtitleView.subviews.forEach({ $0.removeFromSuperview() })
+            self?.subtitle.isHidden = true
+            self?.subtitle.subviews.forEach({ $0.removeFromSuperview() })
         }
         
         viewModel.unHideUserStatus = { [weak self] in
             guard let self = self else { return }
-            self.subtitleView.isHidden = false
-            self.subtitleView.embed(subtitleLabel, insets: .init(top: 1, leading: 0, bottom: 0, trailing: 0))
+            self.subtitle.isHidden = false
+            self.subtitle.embed(subtitleLabel, insets: .init(top: 1, leading: 0, bottom: 0, trailing: 0))
         }
         
         viewModel.updateTypingStatus = { [weak self] byUser, isTyping in
@@ -310,7 +439,7 @@ import CometChatSDK
                     subtitleLabel.textColor = style.subtitleTextColor
 
                 } else {
-                    subtitleView.isHidden = true
+                    subtitle.isHidden = true
                 }
             }
         }
@@ -339,6 +468,10 @@ import CometChatSDK
 
     // MARK: - Actions
     @objc func didBackIconPressed() {
+        if let onBack = onBack?(){
+            onBack
+            return
+        }
         if let navController = controller?.navigationController {
             if navController.viewControllers.first == controller {
                 controller?.dismiss(animated: true)
@@ -349,62 +482,6 @@ import CometChatSDK
         } else {
             controller?.dismiss(animated: true)
         }
-    }
-}
-
-
-extension CometChatMessageHeader {
-    
-    @discardableResult
-    public func set(tailView: UIView) -> Self {
-        self.tailView.subviews.forEach({ $0.removeFromSuperview() })
-        self.tailView.addArrangedSubview(tailView)
-        return self
-    }
-    
-    @discardableResult
-    @objc public func set(user: User) -> CometChatMessageHeader {
-        viewModel.set(user: user)
-        DispatchQueue.main.async { [weak self] in
-            guard let strongSelf = self else { return }
-            strongSelf.configure(user: user)
-        }
-        return self
-    }
-    
-    @discardableResult
-    @objc public func set(group: Group) -> CometChatMessageHeader {
-        viewModel.set(group: group)
-        DispatchQueue.main.async { [weak self] in
-            guard let strongSelf = self else { return }
-            strongSelf.configure(group: group)
-        }
-        return self
-    }
-    
-    @discardableResult
-    public func disable(userPresence: Bool) -> Self {
-        self.disableUsersPresence = userPresence
-        return self
-    }
-    
-    @discardableResult
-    public func disable(typing: Bool) -> Self {
-        self.disableTyping = typing
-        return self
-    }
-    
-    @discardableResult
-    public func set(controller: UIViewController) -> Self {
-        self.controller = controller
-        return self
-    }
-    
-    @discardableResult
-    public func hide(backButton: Bool) -> Self {
-        self.backButton.isHidden = backButton
-        self.backButtonView.isHidden = backButton
-        return self
     }
 }
 
@@ -431,7 +508,9 @@ extension CometChatMessageHeader: CometChatConnectionDelegate {
                 this.viewModel.group = group
                 this.updateTypingStatus(user: nil, isTyping: false)
             } onError: { error in
-                //TODO: ERROR
+                if let error = error, let onError = self.onError?(error){
+                    onError
+                }
             }
         } else if let user = viewModel.user {
             CometChat.getUser(UID: viewModel.user?.uid ?? "") { [weak self] user in
@@ -440,7 +519,9 @@ extension CometChatMessageHeader: CometChatConnectionDelegate {
                 this.updateTypingStatus(user: user, isTyping: false)
                 this.setupViewModel()
             } onError: { error in
-                //TODO: ERROR
+                if let error = error, let onError = self.onError?(error){
+                    onError
+                }
             }
         }
         

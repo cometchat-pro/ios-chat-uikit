@@ -15,6 +15,7 @@ open class MessageUtils {
         message: BaseMessage,
         from messageStyle: (incoming: MessageBubbleStyle, outgoing: MessageBubbleStyle)
     ) -> BaseMessageBubbleStyle? {
+        
         if message.deletedAt > 0.0{
             return getMessageBubbleStyle(from: message).deleteBubbleStyle
         }
@@ -86,16 +87,17 @@ open class MessageUtils {
         bubbleStyle: MessageBubbleStyle,
         message: BaseMessage,
         hideReceipt: Bool = false,
-        messageAlignment: MessageListAlignment = .standard
+        messageAlignment: MessageListAlignment = .standard,
+        timePattern: ((_ timestamp: Int?) -> String)? = nil
     ) {
         
-        if let message = message as? CustomMessage, message.type == "meeting"{
+        if let message = message as? CustomMessage, message.type == "meeting", message.deletedAt == 0{
             return
         }
         
         let isLoggedInUser = LoggedInUserInformation.isLoggedInUser(uid: message.senderUid)
         
-        var messageTypeStyle: BaseMessageBubbleStyle? = messageTypeStyle
+        let messageTypeStyle: BaseMessageBubbleStyle? = messageTypeStyle
         var bubbleStyle: MessageBubbleStyle = bubbleStyle
         
         let statusInfoContainerView = UIStackView(frame: .zero).withoutAutoresizingMaskConstraints()
@@ -133,7 +135,11 @@ open class MessageUtils {
             dateStyle.cornerRadius = nil
             
             date.set(pattern: .time)
-            date.set(timestamp: message.sentAt)
+            if let timePattern = timePattern?(message.sentAt){
+                date.text = timePattern
+            }else{
+                date.set(timestamp: message.sentAt)
+            }
             date.style = dateStyle
             
             // adding edited tag for text message
@@ -218,15 +224,23 @@ open class MessageUtils {
         }
     }
     
-    public static func getDefaultAttachmentOptions() -> [CometChatMessageComposerAction] {
-        let composerActions = [
-            CometChatMessageComposerAction(id: MessageTypeConstants.image, text: "TAKE_A_PHOTO".localize(), startIcon: UIImage(systemName: "camera.fill") ?? UIImage(), endIcon: nil, startIconTint: nil, endIconTint: nil, textColor: nil, textFont: nil),
-            
-            CometChatMessageComposerAction(id: MessageTypeConstants.image, text: "PHOTO_VIDEO_LIBRARY".localize(), startIcon:  UIImage(systemName: "photo") ?? UIImage(), endIcon: nil, startIconTint: nil, endIconTint: nil, textColor: nil, textFont: nil),
-            
-            CometChatMessageComposerAction(id: MessageTypeConstants.file, text: "DOCUMENT".localize(), startIcon: UIImage(named: "document.on.document", in: CometChatUIKit.bundle, compatibleWith: nil) ?? UIImage(), endIcon: nil, startIconTint: nil, endIconTint: nil, textColor: nil, textFont: nil)
-        ]
-        return composerActions
+    public static func getDefaultAttachmentOptions(addtionalConfiguration: AdditionalConfiguration) -> [CometChatMessageComposerAction] {
+        
+        var composerAction: [CometChatMessageComposerAction] = []
+        
+        if !addtionalConfiguration.hideImageAttachmentOption{
+            composerAction.append(CometChatMessageComposerAction(id: MessageTypeConstants.image, text: "TAKE_A_PHOTO".localize(), startIcon: UIImage(systemName: "camera.fill") ?? UIImage(), endIcon: nil, startIconTint: nil, endIconTint: nil, textColor: nil, textFont: nil))
+        }
+        
+        if !addtionalConfiguration.hideVideoAttachmentOption{
+            composerAction.append(CometChatMessageComposerAction(id: MessageTypeConstants.image, text: "PHOTO_VIDEO_LIBRARY".localize(), startIcon:  UIImage(systemName: "photo") ?? UIImage(), endIcon: nil, startIconTint: nil, endIconTint: nil, textColor: nil, textFont: nil))
+        }
+        
+        if !addtionalConfiguration.hideFileAttachmentOption{
+            composerAction.append(CometChatMessageComposerAction(id: MessageTypeConstants.file, text: "DOCUMENT".localize(), startIcon: UIImage(named: "document.on.document", in: CometChatUIKit.bundle, compatibleWith: nil) ?? UIImage(), endIcon: nil, startIconTint: nil, endIconTint: nil, textColor: nil, textFont: nil))
+        }
+        
+        return composerAction
     }
     
     public static func bubbleBackgroundAppearance(bubbleView: UIView, senderUid: String, message: BaseMessage, controller: UIViewController ) {

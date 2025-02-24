@@ -24,4 +24,6 @@ public struct ThreadedMessageHeaderStyle {
     public var countTextColor: UIColor = CometChatTheme.textColorSecondary
     public var countTextFont: UIFont = CometChatTypography.Body.regular
     
+    public init() { }
+    
 }

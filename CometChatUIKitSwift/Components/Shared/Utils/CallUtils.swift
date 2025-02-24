@@ -114,7 +114,8 @@ extension CallUtils {
         style: CallLogStyle,
         incomingCallIcon: UIImage? = nil,
         outgoingCallIcon: UIImage? = nil,
-        missedCallIcon: UIImage? = nil
+        missedCallIcon: UIImage? = nil,
+        callDate: String?
     ) -> UIView {
         
         if let callData = (callData as? CallLog) {
@@ -139,7 +140,11 @@ extension CallUtils {
             callStatusIcon.contentMode = .scaleAspectFit
             
             let subtitleLabel = UILabel()
-            subtitleLabel.text = convertTimeStampToCallDate(timestamp: callData.initiatedAt)
+            if let callDate = callDate, !callDate.isEmpty{
+                subtitleLabel.text = callDate
+            }else{
+                subtitleLabel.text = convertTimeStampToCallDate(timestamp: callData.initiatedAt)
+            }
             subtitleLabel.font = style.listItemSubTitleFont
             subtitleLabel.textColor = style.listItemSubTitleTextColor
             subtitleView.addArrangedSubview(callStatusIcon)

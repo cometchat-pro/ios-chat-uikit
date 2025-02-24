@@ -65,7 +65,6 @@ open class CometChatThreadedMessageHeader: UIView {
     public var controller: UIViewController?
     public var template: CometChatMessageTemplate?
     public var messageAlignment: MessageListAlignment = .standard
-    public var showAvatar: Bool?
     public var hideReceipt: Bool = false
     public var hideBubbleHeader: Bool = false
     public var messageBubbleStyle = CometChatMessageBubble.style
@@ -74,6 +73,13 @@ open class CometChatThreadedMessageHeader: UIView {
             heightConstant.constant = maxHeight
         }
     }
+    var textFormatters: [CometChatTextFormatter] = {
+        return ChatConfigurator.getDataSource().getTextFormatters()
+    }()
+    var datePattern: ((_ conversation: Conversation) -> String)?
+    public var hideReplyCount: Bool = false
+    public var hideReplyCountBar: Bool = false
+    public var hideAvatar: Bool = false
     
     //Helper Variable
     public static var style = ThreadedMessageHeaderStyle()
@@ -121,13 +127,19 @@ open class CometChatThreadedMessageHeader: UIView {
             connect()
             setupThreadCountIndicator()
             setupStyle()
+            updateUI()
         }
+    }
+    
+    func updateUI(){
+        threadCountLabel.isHidden = hideReplyCount
+        threadCountContainerView.isHidden = hideReplyCountBar
     }
     
     open func setupStyle() {
         backgroundColor = style.backgroundColor
         borderWith(width: style.borderWith)
-        borderColor(color: style.backgroundColor)
+        borderColor(color: style.borderColor)
         if let cornerRadius = style.cornerRadius {
             roundViewCorners(corner: cornerRadius)
         }
@@ -162,6 +174,7 @@ open class CometChatThreadedMessageHeader: UIView {
         ]
         
         addSubview(threadCountContainerView)
+        
         constraintsToActive += [
             threadCountContainerView.topAnchor.pin(equalTo: bubbleScrollView.bottomAnchor),
             threadCountContainerView.leadingAnchor.pin(equalTo: leadingAnchor),
@@ -170,6 +183,8 @@ open class CometChatThreadedMessageHeader: UIView {
         ]
         
         NSLayoutConstraint.activate(constraintsToActive)
+        
+        
     }
     
     //Setting Up Message Bubble View
@@ -246,19 +261,11 @@ open class CometChatThreadedMessageHeader: UIView {
                 case .user:
                     cell.hide(headerView: true)
                     if cell.alignment == .left {
-                        if let showAvatar {
-                            cell.hide(avatar: !showAvatar)
-                        } else {
-                            cell.hide(avatar: true)
-                        }
+                        cell.hide(avatar: hideAvatar)
                     }
                 case .group:
                     if cell.alignment == .left {
-                        if let showAvatar {
-                            cell.hide(avatar: !showAvatar)
-                        } else {
-                            cell.hide(avatar: false)
-                        }
+                        cell.hide(avatar: hideAvatar)
                         cell.hide(headerView: false)
                     } else {
                         cell.hide(headerView: true)
@@ -308,65 +315,6 @@ open class CometChatThreadedMessageHeader: UIView {
                 self.template = template
             }
         }
-    }
-    
-}
-
-//MARK: PROPRTIES
-extension CometChatThreadedMessageHeader {
-    
-    @discardableResult
-    public func set(parentMessage: BaseMessage) ->  Self {
-        self.viewModel.parentMessage = parentMessage
-        getDefaultTemplate(for: parentMessage)
-        setupMessageBubbleView()
-        return self
-    }
-    
-    @discardableResult
-    public func set(count: Int) -> Self {
-        
-        self.count = count
-        DispatchQueue.main.async { [weak self] in
-            guard let this = self else { return }
-            
-            if count == 0 {
-                this.threadCountLabel.text = "NO_REPLIES".localize()
-            } else if count == 1 {
-                this.threadCountLabel.text = this.singleNewMessageText
-            } else {
-                this.threadCountLabel.text = String(count) + " " +  "REPLIES_R".localize()
-            }
-        }
-        
-        return self
-    }
-    
-    @discardableResult
-    public func incrementCount() -> Self {
-        let currentCount = self.getCount + 1
-        self.set(count: currentCount )
-        return self
-    }
-    
-    @discardableResult
-    public func reset() -> Self {
-        self.count = 0
-        return self
-    }
-    
-    @discardableResult
-    public func set(controller: UIViewController?) -> Self {
-        self.controller = controller
-        return self
-    }
-    
-    @discardableResult
-    public func set(parentMessage: BaseMessage, template: CometChatMessageTemplate) -> Self {
-        viewModel.parentMessage = parentMessage
-        self.template = template
-        setupMessageBubbleView()
-        return self
     }
     
 }

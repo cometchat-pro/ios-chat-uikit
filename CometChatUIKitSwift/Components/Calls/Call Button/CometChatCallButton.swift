@@ -21,8 +21,8 @@ public class CometChatCallButtons: UIStackView {
     public var videoCallIconText: String?
     public var conferenceCallIconText: String?
     public weak var controller : UIViewController?
-    public var hideVoiceCall : Bool = false
-    public var hideVideoCall : Bool = false
+    public var hideVoiceCallButton : Bool = false
+    public var hideVideoCallButton : Bool = false
     public var callButtonsStyle : ButtonStyle?
     public var voiceCallButton : CometChatButton?
     public var videoCallButton : CometChatButton?
@@ -30,7 +30,7 @@ public class CometChatCallButtons: UIStackView {
     public var outgoingCallConfiguration : OutgoingCallConfiguration?
     public var onVoiceCallClick: ((_ user: User?, _ group: Group?) -> Void)?
     public var onVideoCallClick: ((_ user: User?, _ group: Group?) -> Void)?
-    public var onError: ((_ error: CometChatException?) -> Void)?
+    var onError: ((_ error: CometChatException?) -> Void)?
     public var callSettingsBuilderCallBack: ((_ user: User?, _ group: Group?, _ isAudioOnly: Bool) -> Any)?
     private var disabled = false
     private var uniqueID = Date().timeIntervalSince1970
@@ -121,12 +121,13 @@ public class CometChatCallButtons: UIStackView {
     }
     
     open func buildButton(forUser: User) {
+        
         self.subviews.forEach({$0.removeFromSuperview()})
         
         // Audio Call
         voiceCallButton = CometChatButton().withoutAutoresizingMaskConstraints()
         if let voiceCallButton = voiceCallButton {
-            voiceCallButton.isHidden = hideVoiceCall
+            voiceCallButton.isHidden = hideVoiceCallButton
             guard let user = self.user, let uid = user.uid else { return }
             let call = Call(receiverId: uid, callType: .audio, receiverType: .user)
             
@@ -145,7 +146,7 @@ public class CometChatCallButtons: UIStackView {
         // Video Call
         videoCallButton = CometChatButton().withoutAutoresizingMaskConstraints()
         if let videoCallButton = videoCallButton {
-            videoCallButton.isHidden = hideVideoCall
+            videoCallButton.isHidden = hideVideoCallButton
 
             guard let user = self.user, let uid = user.uid else { return }
          
@@ -276,96 +277,8 @@ public class CometChatCallButtons: UIStackView {
 
 extension CometChatCallButtons: CometChatMessageEventListener {
     
-    public func ccMessageSent(message: CometChatSDK.BaseMessage, status: MessageStatus) {    }
-    
-    @discardableResult
-    public func set(controller: UIViewController?) -> Self {
-        self.controller = controller
-        return self
-    }
-    
-    @discardableResult
-    public func set(user: User) -> Self {
-        self.user = user
-        buildButton(forUser: user)
-        return self
-    }
-    
-    @discardableResult
-    public func set(group: Group) -> Self {
-        self.group = group
-        buildButton(forGroup: group)
-        return self
-    }
-    
-    @discardableResult
-    public func set(voiceCallIconText: String) -> Self {
-        self.voiceCallIconText = voiceCallIconText
-        return self
-    }
-    
-    @discardableResult
-    public func set(videoCallIconText: String) -> Self {
-        self.videoCallIconText = videoCallIconText
-        return self
-    }
-    
-    @discardableResult
-    public func hide(voiceCall: Bool) -> Self {
-        self.hideVoiceCall = voiceCall
-        voiceCallButton?.isHidden = hideVoiceCall
-        voiceCallButton?.clipsToBounds = true
-        return self
-    }
-    
-    @discardableResult
-    public func hide(videoCall: Bool) -> Self {
-        self.hideVideoCall = videoCall
-        videoCallButton?.isHidden = hideVideoCall
-        videoCallButton?.clipsToBounds = true
-        return self
-    }
-    
-    
-    @discardableResult
-    public func set(callButtonsStyle: ButtonStyle) -> Self {
-        self.callButtonsStyle = callButtonsStyle
-        return self
-    }
-    
-    @discardableResult
-    public func set(outgoingCallConfiguration: OutgoingCallConfiguration?) -> Self {
-        self.outgoingCallConfiguration = outgoingCallConfiguration
-        return self
-    }
-    
-    @discardableResult
-    public func setOnVoiceCallClick(onVoiceCallClick: @escaping ((_ user: User?, _ group: Group?) -> Void)) -> Self {
-        self.onVoiceCallClick = onVoiceCallClick
-        return self
-    }
-    
-    @discardableResult
-    public func setOnVideoCallClick(onVideoCallClick: @escaping ((_ user: User?, _ group: Group?) -> Void)) -> Self {
-        self.onVideoCallClick = onVideoCallClick
-        return self
-    }
-    
-    @discardableResult
-    public func setOnError(onError: @escaping ((_ error: CometChatException?) -> Void)) -> Self {
-        self.onError = onError
-        return self
-    }
-    
-    /// Configures the settings for calls initiated via CallButton by providing a callback function.
-    /// This function takes a callback that is invoked every time a call is initiated via CallButton, either on a User or a Group.
-    /// The callback allows customization of the CallSettingsBuilder based on the User, Group, and whether the call is audio-only.
-    /// - Parameter groupCallSettingBuilder: A callback function that provides a User (optional), a Group, and a Boolean indicating if the call is audio-only. The callback returns a CallSettingsBuilder object configured with the desired settings.
-    /// - Returns: The current instance of CallingConfiguration for declarative coding, allowing further method chaining.
-    /// - Note: Ensure that the returned object from the callback is of type CallSettingsBuilder to apply the custom settings.
-    @discardableResult public func set(callSettingsBuilder: @escaping ((_ user: User?, _ group: Group?, _ isAudioOnly: Bool) -> Any)) -> Self {
-        self.callSettingsBuilderCallBack = callSettingsBuilder
-        return self
+    public func ccMessageSent(message: CometChatSDK.BaseMessage, status: MessageStatus) {
+        
     }
     
 }
@@ -421,7 +334,7 @@ extension CometChatCallButtons {
                     outgoingCall.set(callSettingsBuilder: callSettingsBuilder)
                 }
                 this.setupOutgoingCallConfiguration(outgoingCall: outgoingCall)
-                outgoingCall.setOnCancelClick { call, controller in
+                outgoingCall.set(onCancelClick: { call, controller in
                     CometChat.rejectCall(sessionID: call?.sessionID ?? "", status: .cancelled) { call in
                         if let call = call {
                             CometChatCallEvents.ccCallRejected(call: call)
@@ -435,7 +348,7 @@ extension CometChatCallButtons {
                             controller?.dismiss(animated: true)
                         }
                     }
-                }
+                })
                
                 this.controller?.present(outgoingCall, animated: true)
             }
@@ -443,11 +356,8 @@ extension CometChatCallButtons {
             self.onError?(error)
             DispatchQueue.main.async {
                 let confirmDialog = CometChatDialog()
+                confirmDialog.set(title: "SOMETHING_WENT_WRONG_ERROR".localize())
                 confirmDialog.set(confirmButtonText: "OK".localize())
-                confirmDialog.set(cancelButtonText: "CANCEL".localize())
-                if let error = error {
-                    confirmDialog.set(error: error.errorDescription)
-                }
                 confirmDialog.open {
                 }
             }
@@ -468,7 +378,7 @@ extension CometChatCallButtons {
                     outgoingCall.set(callSettingsBuilder: callSettingsBuilder)
                 }
                 this.setupOutgoingCallConfiguration(outgoingCall: outgoingCall)
-                outgoingCall.setOnCancelClick { call, controller in
+                outgoingCall.set(onCancelClick: { call, controller in
                     CometChat.rejectCall(sessionID: call?.sessionID ?? "", status: .cancelled) { call in
                         if let call = call {
                             CometChatCallEvents.ccCallRejected(call: call)
@@ -482,18 +392,16 @@ extension CometChatCallButtons {
                             controller?.dismiss(animated: true)
                         }
                     }
-                }
+                })
+                
                 this.controller?.present(outgoingCall, animated: true)
             }
         } onError: { error in
             self.onError?(error)
             DispatchQueue.main.async {
                 let confirmDialog = CometChatDialog()
+                confirmDialog.set(title: "SOMETHING_WENT_WRONG_ERROR".localize())
                 confirmDialog.set(confirmButtonText: "OK".localize())
-                confirmDialog.set(cancelButtonText: "CANCEL".localize())
-                if let error = error {
-                    confirmDialog.set(error: error.errorDescription)
-                }
                 confirmDialog.open {
                 }
             }

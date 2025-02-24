@@ -19,6 +19,30 @@ public class CometChatIncomingCall: UIViewController {
         return view
     }()
     
+    public lazy var titleContainerView: UIView = {
+        let view = UIView().withoutAutoresizingMaskConstraints()
+        view.backgroundColor = .clear
+        return view
+    }()
+    
+    public lazy var subtitleContainerView: UIView = {
+        let view = UIView().withoutAutoresizingMaskConstraints()
+        view.backgroundColor = .clear
+        return view
+    }()
+    
+    public lazy var trailingView: UIView = {
+        let view = UIView().withoutAutoresizingMaskConstraints()
+        view.backgroundColor = .clear
+        return view
+    }()
+    
+    public lazy var leadingContainerView: UIView = {
+        let view = UIView().withoutAutoresizingMaskConstraints()
+        view.backgroundColor = .clear
+        return view
+    }()
+    
     public lazy var nameLabel: UILabel = {
         let label = UILabel().withoutAutoresizingMaskConstraints()
         return label
@@ -61,8 +85,15 @@ public class CometChatIncomingCall: UIViewController {
     public var disableSoundForCalls = false
     public var customSoundForCalls: URL?
     var viewModel = IncomingCallViewModel()
-    public var onCancelClick: ((_ call: Call?, _ controller: UIViewController?) -> Void)?
-    public var onAcceptClick: ((_ call: Call?, _ controller: UIViewController?) -> Void)?
+    var onCancelClick: ((_ call: Call?, _ controller: UIViewController?) -> Void)?
+    var onAcceptClick: ((_ call: Call?, _ controller: UIViewController?) -> Void)?
+    
+    var listItemView: ((_ call: Call) -> UIView)?
+    var trailView: ((_ call: Call) -> UIView)?
+    var titleView: ((_ call: Call) -> UIView)?
+    var subtitleView: ((_ call: Call) -> UIView)?
+    var leadingView: ((_ call: Call) -> UIView)?
+    var onError: ((_ error: CometChatException) -> Void)?
 
     
     public override func viewWillAppear(_ animated: Bool) {
@@ -120,9 +151,10 @@ public class CometChatIncomingCall: UIViewController {
             }
         }
         
-        viewModel.onError = { _ in
+        viewModel.onError = { error in
             CometChatSoundManager().pause()
             DispatchQueue.main.async {
+                self.onError?(error)
                 self.dismiss(animated: true)
             }
         }
@@ -151,38 +183,83 @@ public class CometChatIncomingCall: UIViewController {
             containerView.trailingAnchor.pin(equalTo: view.trailingAnchor, constant: -8),
         ]
         
-        containerView.addSubview(avatar)
+        containerView.addSubview(leadingContainerView)
+        leadingContainerView.embed(avatar)
+        
         constraintsToActive += [
-            avatar.centerYAnchor.pin(equalTo: containerView.centerYAnchor),
-            avatar.leadingAnchor.pin(equalTo: containerView.leadingAnchor, constant: CometChatSpacing.Margin.m5),
+            leadingContainerView.centerYAnchor.pin(equalTo: containerView.centerYAnchor),
+            leadingContainerView.leadingAnchor.pin(equalTo: containerView.leadingAnchor, constant: CometChatSpacing.Margin.m5),
         ]
         
-        containerView.addSubview(callLabel)
         constraintsToActive += [
-            callLabel.leadingAnchor.pin(equalTo: avatar.trailingAnchor, constant: CometChatSpacing.Padding.p3),
-            callLabel.topAnchor.pin(equalTo: avatar.topAnchor)
+            avatar.centerYAnchor.pin(equalTo: leadingContainerView.centerYAnchor),
+            avatar.centerXAnchor.pin(equalTo: leadingContainerView.centerXAnchor)
         ]
         
-        containerView.addSubview(nameLabel)
+        containerView.addSubview(subtitleContainerView)
+        subtitleContainerView.embed(callLabel)
+        
         constraintsToActive += [
-            nameLabel.leadingAnchor.pin(equalTo: avatar.trailingAnchor, constant: CometChatSpacing.Padding.p3),
-            nameLabel.bottomAnchor.pin(equalTo: avatar.bottomAnchor)
+            subtitleContainerView.leadingAnchor.pin(equalTo: leadingContainerView.trailingAnchor, constant: CometChatSpacing.Padding.p3),
+            subtitleContainerView.topAnchor.pin(equalTo: leadingContainerView.topAnchor)
         ]
         
-        containerView.addSubview(acceptButton)
+        containerView.addSubview(titleContainerView)
+        titleContainerView.embed(nameLabel)
+        
         constraintsToActive += [
-            acceptButton.trailingAnchor.pin(equalTo: containerView.trailingAnchor, constant: -CometChatSpacing.Margin.m5),
-            acceptButton.centerYAnchor.pin(equalTo: containerView.centerYAnchor)
+            titleContainerView.leadingAnchor.pin(equalTo: leadingContainerView.trailingAnchor, constant: CometChatSpacing.Padding.p3),
+            titleContainerView.bottomAnchor.pin(equalTo: leadingContainerView.bottomAnchor)
         ]
         
-        containerView.addSubview(declineButton)
+        
+        containerView.addSubview(trailingView)
+        constraintsToActive += [
+            trailingView.trailingAnchor.pin(equalTo: containerView.trailingAnchor, constant: 0),
+            trailingView.centerYAnchor.pin(equalTo: trailingView.centerYAnchor),
+            trailingView.leadingAnchor.pin(equalTo: titleContainerView.leadingAnchor, constant: CometChatSpacing.Padding.p3),
+            trailingView.topAnchor.pin(equalTo: containerView.topAnchor, constant: 0),
+            trailingView.bottomAnchor.pin(equalTo: containerView.bottomAnchor, constant: 0)
+        ]
+        
+        trailingView.addSubview(acceptButton)
+        constraintsToActive += [
+            acceptButton.trailingAnchor.pin(equalTo: trailingView.trailingAnchor, constant: -CometChatSpacing.Margin.m5),
+            acceptButton.centerYAnchor.pin(equalTo: trailingView.centerYAnchor)
+        ]
+        
+        trailingView.addSubview(declineButton)
         constraintsToActive += [
             declineButton.trailingAnchor.pin(equalTo: acceptButton.leadingAnchor, constant: -CometChatSpacing.Padding.p3),
-            declineButton.centerYAnchor.pin(equalTo: containerView.centerYAnchor),
+            declineButton.centerYAnchor.pin(equalTo: trailingView.centerYAnchor),
             declineButton.leadingAnchor.pin(equalTo: nameLabel.trailingAnchor)
         ]
         
         NSLayoutConstraint.activate(constraintsToActive)
+        
+        
+        if let call = viewModel.call, let leadingView = leadingView?(call){
+            leadingContainerView.subviews.forEach({$0.removeFromSuperview()})
+            leadingContainerView.pin(anchors: [.width, .height], to: 60)
+            leadingContainerView.embed(leadingView)
+        }
+        if let call = viewModel.call, let trailView = trailView?(call){
+            trailingView.subviews.forEach({$0.removeFromSuperview()})
+            trailingView.embed(trailView)
+        }
+        if let call = viewModel.call, let titleView = titleView?(call){
+            titleContainerView.subviews.forEach({$0.removeFromSuperview()})
+            titleContainerView.embed(titleView)
+        }
+        if let call = viewModel.call, let subtitleView = subtitleView?(call){
+            subtitleContainerView.subviews.forEach({$0.removeFromSuperview()})
+            subtitleContainerView.embed(subtitleView)
+        }
+        if let call = viewModel.call, let listItemView = listItemView?(call){
+            containerView.subviews.forEach({$0.removeFromSuperview()})
+            containerView.embed(listItemView)
+        }
+        
     }
     
     open func setupData() {
@@ -231,7 +308,9 @@ public class CometChatIncomingCall: UIViewController {
     
     @objc open func onAcceptButtonTapped() {
         if let onAcceptClick = onAcceptClick {
-            onAcceptClick(viewModel.call, self)
+            self.dismiss(animated: true) {
+                onAcceptClick(self.viewModel.call, self)
+            }
         } else if let call = viewModel.call {
             viewModel.acceptCall(call: call)
         }
@@ -243,51 +322,6 @@ public class CometChatIncomingCall: UIViewController {
         } else if let call = viewModel.call {
             viewModel.rejectCall(call: call)
         }
-    }
-}
-
-extension CometChatIncomingCall {
-    
-    @discardableResult
-    public func set(call: Call) -> Self {
-        self.viewModel.call = call
-        return self
-    }
-    
-    @discardableResult
-    public func disable(soundForCalls: Bool) -> Self {
-        self.disableSoundForCalls = soundForCalls
-        return self
-    }
-    
-    @discardableResult
-    public func set(customSoundForCalls: URL?) -> Self {
-        self.customSoundForCalls = customSoundForCalls
-        return self
-    }
-    
-    @discardableResult
-    public func setOnCancelClick(onCancelClick: @escaping (_ call: Call?, _ controller: UIViewController?) -> Void) -> Self {
-        self.onCancelClick = onCancelClick
-        return self
-    }
-    
-    @discardableResult
-    public func setOnAcceptClick(onAcceptClick: @escaping (_ call: Call?, _ controller: UIViewController?) -> Void) -> Self {
-        self.onAcceptClick = onAcceptClick
-        return self
-    }
-    
-    /// Configures the outgoing call settings using a custom CallSettingsBuilder.
-    /// This property applies the specified custom CallSettingsBuilder to all outgoing calls.
-    /// - Parameter callSettingBuilder: An instance of a custom CallSettingsBuilder. The object must conform to the CallSettingsBuilder type.
-    /// - Returns: The current instance of OutgoingCallConfiguration for declarative coding, allowing further method chaining.
-    /// - Note: Ensure that the provided callSettingBuilder is of type CallSettingsBuilder, otherwise it will be ignored.
-    @discardableResult public func set(callSettingsBuilder: Any) -> Self {
-        if let callSettingsBuilder = callSettingsBuilder as? CallSettingsBuilder {
-            self.callSettingsBuilder = callSettingsBuilder
-        }
-        return self
     }
 }
 

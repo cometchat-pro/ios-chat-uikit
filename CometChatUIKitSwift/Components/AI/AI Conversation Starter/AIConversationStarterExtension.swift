@@ -30,9 +30,9 @@ public class AIConversationStarterExtension: ExtensionDataSource {
     }
     
     public override func addExtension() {
-        ChatConfigurator.enable { dataSource in
-            return AIConversationStarterDecorator(dataSource: dataSource, configuration: configuration)
-        }
+//        ChatConfigurator.enable { dataSource in
+//            return AIConversationStarterDecorator(dataSource: dataSource, configuration: configuration)
+//        }
     }
     
     public override func getExtensionId() -> String {

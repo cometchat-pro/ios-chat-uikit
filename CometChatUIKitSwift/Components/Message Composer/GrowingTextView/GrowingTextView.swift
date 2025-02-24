@@ -32,7 +32,7 @@ open class GrowingTextView: UITextView {
     @IBInspectable open var minHeight: CGFloat = 0 {
         didSet { forceLayoutSubviews() }
     }
-    @IBInspectable open var maxLine: CGFloat = 0 {
+    @IBInspectable open var maxLine: Int = 0 {
         didSet { forceLayoutSubviews() }
     }
     @IBInspectable open var maxHeight: CGFloat = 0 {
@@ -105,6 +105,8 @@ open class GrowingTextView: UITextView {
         if text == oldText && bounds.size == oldSize { return }
         oldText = text
         oldSize = bounds.size
+        
+        self.textContainer.maximumNumberOfLines = maxLine
         
         let size = sizeThatFits(CGSize(width: bounds.size.width, height: CGFloat.greatestFiniteMagnitude))
         var height = size.height

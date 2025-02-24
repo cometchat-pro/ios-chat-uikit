@@ -14,6 +14,7 @@ open class CometChatMessageList: UIView {
     lazy var container: UIStackView = {
         let stackView = UIStackView().withoutAutoresizingMaskConstraints()
         stackView.axis = .vertical
+        stackView.alignment = .center
         stackView.backgroundColor = UIColor.clear
         return stackView
     }()
@@ -63,18 +64,16 @@ open class CometChatMessageList: UIView {
     
     
     // MARK: - Disable Customisation
-    public var showAvatar: Bool?
     public var hideHeaderView = false
     public var hideBubbleHeader = false
     public var hideFooterView = false
     public var hideDateSeparator = false
-    public var disableReactions = false
     public var scrollToBottomOnNewMessages: Bool = false
-    public var hideReceipt: Bool = false
+    public var hideReceipts: Bool = false
     public var disableSoundForMessages: Bool = false
-    public var hideEmptyStateView: Bool = true
-    public var hideErrorStateView: Bool = false
-    public var hideLoadingStateView: Bool = false
+    public var hideEmptyView: Bool = true
+    public var hideErrorView: Bool = false
+    public var hideLoadingView: Bool = false
     public var hideNewMessageIndicator = false {
         didSet {
             messageIndicator?.isHidden = hideNewMessageIndicator
@@ -118,8 +117,69 @@ open class CometChatMessageList: UIView {
     
     
     //MARK: - Call Backs
-    public internal(set) var onThreadRepliesClick: ((_ message: BaseMessage, _ template: CometChatMessageTemplate) -> ())?
+    var onThreadRepliesClick: ((_ message: BaseMessage, _ template: CometChatMessageTemplate) -> ())?
+    var onReactionClick: ((_ reaction: ReactionCount, _ baseMessage: BaseMessage?) -> ())?
+    var onReactionListItemClick: ((_ messageReaction: CometChatSDK.Reaction, _ baseMessage: BaseMessage?) -> ())?
+    
+    var onError: ((_ error: CometChatException) -> Void)?
+    var onEmpty: (() -> Void)?
+    var onLoad: (([BaseMessage]) -> Void)?
+    
+    public var hideAvatar: Bool = false
+    public var hideGroupActionMessages: Bool = false
+    public var hideReplyInThreadOption: Bool = false{
+        didSet{
+            viewModel.hideReplyInThreadOption = hideReplyInThreadOption
+        }
+    }
+    public var hideTranslateMessageOption: Bool = false{
+        didSet{
+            viewModel.hideTranslateMessageOption = hideTranslateMessageOption
+        }
+    }
+    public var hideEditMessageOption: Bool = false{
+        didSet{
+            viewModel.hideEditMessageOption = hideEditMessageOption
+        }
+    }
+    public var hideDeleteMessageOption: Bool = false{
+        didSet{
+            viewModel.hideDeleteMessageOption = hideDeleteMessageOption
+        }
+    }
+    public var hideReactionOption: Bool = false{
+        didSet{
+            viewModel.hideReactionOption = hideReactionOption
+        }
+    }
+    public var hideMessagePrivatelyOption: Bool = false{
+        didSet{
+            viewModel.hideMessagePrivatelyOption = hideMessagePrivatelyOption
+        }
+    }
+    public var hideCopyMessageOption: Bool = false{
+        didSet{
+            viewModel.hideCopyMessageOption = hideCopyMessageOption
+        }
+    }
+    public var hideMessageInfoOption: Bool = false{
+        didSet{
+            viewModel.hideMessageInfoOption = hideMessageInfoOption
+        }
+    }
+    
+    //AI Variables 
+    public var enableConversationStarters: Bool = false
+    public var enableSmartReplies: Bool = false
+    var aiConversationStarterView = CometChatAIConversationStarter()
+    var aiSmartReplyView = CometChatAISmartReply()
+    var smartRepliesKeywords: [String] = []
+    var smartRepliesDelayDuration: Int = 10
+    var smartRepliesWorkItem: DispatchWorkItem?
+
+    
     public internal(set) var datePattern: ((_ timestamp: Int?) -> String)?
+    public internal(set) var timePattern: ((_ timestamp: Int?) -> String)?
     public internal(set) var dateSeparatorPattern: ((_ timestamp: Int?) -> String)?
     
     //MARK: Other Customisation
@@ -150,6 +210,7 @@ open class CometChatMessageList: UIView {
     //MARK: - INTERNAL HELPER VARIABLE
     var newMessageIndicatorScrollOffSet: CGFloat = 150
     var messagesRequestBuilder: MessagesRequest.MessageRequestBuilder? = nil
+    var reactionsRequestBuilder: ReactionsRequestBuilder? = nil
     var baseMessage: BaseMessage?
     weak var controller: UIViewController?
     var messageIndicator : CometChatNewMessageIndicator?
@@ -203,11 +264,15 @@ open class CometChatMessageList: UIView {
         
         // Add subviews to container
         container.addArrangedSubview(headerViewContainer)
+        headerViewContainer.pin(anchors: [.leading, .trailing], to: container, with: 10)
         container.addArrangedSubview(tableView)
+        tableView.pin(anchors: [.leading, .trailing], to: container, with: 0)
         container.addArrangedSubview(footerViewContainer)
+        footerViewContainer.pin(anchors: [.leading, .trailing], to: container, with: 10)
     }
     
     open func setupStyle() {
+        self.backgroundColor = style.backgroundColor
         if let backgroundImage = style.backgroundImage {
             tableView.backgroundView = UIImageView(image: style.backgroundImage)
         }
@@ -234,6 +299,13 @@ open class CometChatMessageList: UIView {
             loadingStateView.isGroupMode = viewModel.group == nil ? false : true
             loadingStateView.colorGradient1 = style.shimmerGradientColor1
             loadingStateView.colorGradient2 = style.shimmerGradientColor2
+        }
+        
+        if hideHeaderView{
+            self.clear(headerView: true)
+        }
+        if hideFooterView{
+            self.clear(footerView: true)
         }
         
     }
@@ -287,29 +359,29 @@ open class CometChatMessageList: UIView {
     
     //MARK: - State Views
     open func showErrorView() {
-        if hideErrorStateView { return }
+        if hideErrorView { return }
         addSubview(errorStateView)
         errorStateView.pin(anchors: [.centerX, .centerY], to: self)
     }
     
     open func removeErrorView() {
-        if hideErrorStateView { return }
+        if hideErrorView { return }
         errorStateView.removeFromSuperview()
     }
     
     open func showEmptyView() {
-        if hideEmptyStateView { return }
+        if hideEmptyView { return }
         addSubview(emptyStateView)
         emptyStateView.pin(anchors: [.centerX, .centerY], to: self)
     }
     
     open func removeEmptyView() {
-        if hideEmptyStateView { return }
+        if hideEmptyView { return }
         emptyStateView.removeFromSuperview()
     }
     
     open func showLoadingView() {
-        if hideLoadingStateView { return }
+        if hideLoadingView { return }
         if let loadingStateView = loadingStateView as? CometChatMessageShimmerView {
             loadingStateView.startShimmer()
         }
@@ -318,7 +390,7 @@ open class CometChatMessageList: UIView {
     }
     
     open func removeLoadingView() {
-        if hideLoadingStateView { return }
+        if hideLoadingView { return }
         if let loadingStateView = loadingStateView as? CometChatMessageShimmerView {
             loadingStateView.stopShimmer()
         }
@@ -340,6 +412,19 @@ open class CometChatMessageList: UIView {
         }
     }
     
+    func getId() -> [String: Any] {
+        var id = [String:Any]()
+        
+        if let user = viewModel.user {
+            id["uid"] = user.uid
+        }
+        if let group = viewModel.group {
+            id["guid"] = group.guid
+        }
+        
+        return id
+    }
+    
     //MARK: - View Model Set up
     open func setupViewModel() {
         
@@ -349,11 +434,19 @@ open class CometChatMessageList: UIView {
                 this.removeLoadingView()
                 this.reload()
                                 
-                if this.viewModel.messages.isEmpty && !this.hideEmptyStateView {
-                    this.showEmptyView()
+                if this.viewModel.messages.isEmpty {
+                    if let onEmpty = this.onEmpty?(){
+                        onEmpty
+                    }
+                   if !this.hideEmptyView{
+                        this.showEmptyView()
+                    }
                 } else {
                     this.removeEmptyView()
                     this.removeErrorView()
+                }
+                if let onLoad = this.onLoad?(this.viewModel.messages.flatMap { $0.messages }){
+                    onLoad
                 }
                 
                 this.hideTopSpinner()
@@ -420,15 +513,28 @@ open class CometChatMessageList: UIView {
         viewModel.newMessageReceived = { [weak self] message in
             guard let this = self else { return }
             DispatchQueue.main.async {
+                if (this.viewModel.group != nil && message.receiverUid == this.viewModel.group?.guid && message.receiverType == .group) || (this.viewModel.user != nil && message.senderUid == this.viewModel.user?.uid && message.receiverType == .user) {
+                    this.updateAIOnNewMessageReceived(message: message)
+                }
                 if !this.disableSoundForMessages {
                     CometChatSoundManager().play(sound: .incomingMessage, customSound: this.customSoundForMessages)
                 }
             }
         }
         
+        viewModel.ccMessageSent = { [weak self] message, status in
+            guard let this = self else { return }
+            if status == .inProgress {
+                this.updateAIOnNewMessageReceived(message: message)
+            }
+        }
+        
         viewModel.failure = { [weak self] error in
             DispatchQueue.main.async {
                 guard let this = self else { return }
+                if let onError = this.onError?(error){
+                    onError
+                }
                 this.removeLoadingView()
                 this.showErrorView()
             }
@@ -453,8 +559,17 @@ open class CometChatMessageList: UIView {
         
         viewModel.setHeaderView = { [weak self] headerView  in
             guard let this = self else { return }
-            if this.hideReceipt == false {
+            if this.hideReceipts == false {
                 this.set(headerView: headerView)
+            }
+        }
+        
+        viewModel.onFirstMessageFetch = { [weak self] in
+            guard let this = self else { return }
+            if this.viewModel.messages.isEmpty {
+                if this.enableConversationStarters{
+                    this.getConversationStarter()
+                }
             }
         }
         
@@ -490,8 +605,9 @@ open class CometChatMessageList: UIView {
             messageTypeStyle: messageTypeStyle,
             bubbleStyle: bubbleStyle,
             message: message,
-            hideReceipt: hideReceipt,
-            messageAlignment: messageAlignment
+            hideReceipt: hideReceipts,
+            messageAlignment: messageAlignment,
+            timePattern: timePattern
         )
     }
     
@@ -574,11 +690,24 @@ extension CometChatMessageList: UITableViewDelegate, UITableViewDataSource {
     }
     
     open func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
-        return viewModel.messages[safe: section]?.messages.count ?? 0
-    }
+        let filteredMessages = viewModel.messages[safe: section]?.messages.filter { message in
+            !(hideGroupActionMessages && message.messageCategory == .action && message.receiverType == .group)
+        }
         
+        return filteredMessages?.count ?? 0
+    }
+
     open func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
-        guard let message = viewModel.messages[safe: indexPath.section]?.messages[safe: indexPath.row] else { return UITableViewCell() }
+        guard let message = viewModel.messages[safe: indexPath.section]?.messages[safe: indexPath.row] else {
+            return UITableViewCell()
+        }
+        
+        guard let filteredMessages = viewModel.messages[safe: indexPath.section]?.messages.filter({ message in
+                !(hideGroupActionMessages && message.messageCategory == .action && message.receiverType == .group)
+            }), let message = filteredMessages[safe: indexPath.row] else {
+                return UITableViewCell()
+            }
+        
         let isLoggedInUser = LoggedInUserInformation.isLoggedInUser(uid: message.senderUid)
         var bubbleStyle = isLoggedInUser ? messageBubbleStyle.outgoing : messageBubbleStyle.incoming
         let messageTypeStyle = MessageUtils.getSpecificMessageTypeStyle(message: message, from: messageBubbleStyle)
@@ -586,28 +715,29 @@ extension CometChatMessageList: UITableViewDelegate, UITableViewDataSource {
         if let template = viewModel.getTemplate(for: message) {
             if let cell = tableView.dequeueReusableCell(withIdentifier: CometChatMessageBubble.identifier , for: indexPath) as? CometChatMessageBubble {
                 
-                cell.transform = CGAffineTransform(scaleX: 1, y: -1) //doing this because our tableView is also transformed
+                cell.transform = CGAffineTransform(scaleX: 1, y: -1) // doing this because our tableView is also transformed
                 cell.set(message: message)
                 cell.set(style: bubbleStyle, specificMessageTypeStyle: messageTypeStyle)
                 
-                //Overriding whole bubble
+                // Overriding whole bubble
                 if let bubbleView = template.bubbleView?(message, cell.alignment, controller) {
                     cell.set(bubbleView: bubbleView)
                     return cell
                 }
                 
-                //For action messages
+                // For action messages
                 if message.messageCategory == .action || message.messageCategory == .call {
                     cell.set(bubbleAlignment: .center)
                     if let contentView = template.contentView?(message, cell.alignment, controller) {
                         cell.set(contentView: contentView)
                         cell.set(backgroundColor: .clear)
-                        if message.messageCategory == .action{
+                        if message.messageCategory == .action {
                             cell.set(actionStyle: actionBubbleStyle)
-                        }else{
+                        } else {
                             cell.set(callActionStyle: callActionBubbleStyle)
                         }
                     }
+                    cell.onLongPressGestureRecognized = nil
                     return cell
                 }
                 
@@ -621,7 +751,6 @@ extension CometChatMessageList: UITableViewDelegate, UITableViewDataSource {
                 case .leftAligned:
                     cell.set(bubbleAlignment: .left)
                 }
-                
                 
                 if let headerView = template.headerView?(message, cell.alignment, controller) {
                     cell.set(headerView: headerView)
@@ -645,7 +774,7 @@ extension CometChatMessageList: UITableViewDelegate, UITableViewDataSource {
                     cell.set(bottomView: bottomView)
                 }
                 
-                //adding date and read receipt
+                // Adding date and read receipt
                 if let statusInfoView = template.statusInfoView?(message, cell.alignment, controller) {
                     cell.set(statusInfoView: statusInfoView)
                 } else {
@@ -660,7 +789,7 @@ extension CometChatMessageList: UITableViewDelegate, UITableViewDataSource {
                             forMessage: message,
                             cell: cell,
                             alignment: (messageAlignment == .leftAligned ? .left : (isLoggedInUser ? .right : .left)),
-                            reactionStlye : messageTypeStyle?.reactionsStyle ?? bubbleStyle.reactionsStyle
+                            reactionStlye: messageTypeStyle?.reactionsStyle ?? bubbleStyle.reactionsStyle, template: template
                         )
                     }
                 }
@@ -669,28 +798,20 @@ extension CometChatMessageList: UITableViewDelegate, UITableViewDataSource {
                     addThreadedRepliesView(forMessage: message, toCell: cell, isLoggedInUser: isLoggedInUser, specificMessageTypeStyle: messageTypeStyle, bubbleStyle: bubbleStyle)
                 }
                 
-                //setting up avatar view
+                // Setting up avatar view
                 if let user = message.sender {
                     cell.set(avatarURL: user.avatar, avatarName: user.name)
                     
-                    //setting header View
+                    // Setting header view
                     switch message.receiverType {
                     case .user:
                         cell.hide(headerView: true)
                         if cell.alignment == .left {
-                            if let showAvatar {
-                                cell.hide(avatar: !showAvatar)
-                            } else {
-                                cell.hide(avatar: true)
-                            }
+                            cell.hide(avatar: hideAvatar)
                         }
                     case .group:
                         if cell.alignment == .left {
-                            if let showAvatar {
-                                cell.hide(avatar: !showAvatar)
-                            } else {
-                                cell.hide(avatar: false)
-                            }
+                            cell.hide(avatar: hideAvatar)
                             cell.hide(headerView: false)
                         } else {
                             cell.hide(headerView: true)
@@ -700,14 +821,13 @@ extension CometChatMessageList: UITableViewDelegate, UITableViewDataSource {
                     }
                 }
                 
-                //Setting up Context Menu
+                // Setting up context menu
                 setupContextMenu(for: cell, message: message)
                 
                 return cell
             }
         } else {
-            
-            //building not supported bubble
+            // Building not supported bubble
             if let cell = tableView.dequeueReusableCell(withIdentifier: CometChatMessageBubble.identifier , for: indexPath) as? CometChatMessageBubble {
                 
                 //doing this because our tableView is also transformed
@@ -750,19 +870,11 @@ extension CometChatMessageList: UITableViewDelegate, UITableViewDataSource {
                     case .user:
                         cell.hide(headerView: true)
                         if cell.alignment == .left {
-                            if let showAvatar {
-                                cell.hide(avatar: !showAvatar)
-                            } else {
-                                cell.hide(avatar: true)
-                            }
+                            cell.hide(avatar: hideAvatar)
                         }
                     case .group:
                         if cell.alignment == .left {
-                            if let showAvatar {
-                                cell.hide(avatar: !showAvatar)
-                            } else {
-                                cell.hide(avatar: false)
-                            }
+                            cell.hide(avatar: hideAvatar)
                             cell.hide(headerView: false)
                         } else {
                             cell.hide(headerView: true)
@@ -781,6 +893,7 @@ extension CometChatMessageList: UITableViewDelegate, UITableViewDataSource {
         
         return UITableViewCell()
     }
+
     
     public  func tableView(_ tableView: UITableView, heightForRowAt indexPath: IndexPath) -> CGFloat {
         return UITableView.automaticDimension

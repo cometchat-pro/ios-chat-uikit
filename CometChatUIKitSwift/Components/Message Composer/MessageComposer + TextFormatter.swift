@@ -11,11 +11,15 @@ import Foundation
 extension CometChatMessageComposer: UITextViewDelegate {
     
     public func textViewShouldBeginEditing(_ textView: UITextView) -> Bool {
-        remove(footerView: true)
+//        remove(footerView: true)
         return true
     }
     
     public func textView(_ textView: UITextView, shouldChangeTextIn range: NSRange, replacementText text: String) -> Bool {
+        if let currentText = textView.text as NSString? {
+                let updatedText = currentText.replacingCharacters(in: range, with: text)
+                onTextChangedListener?(updatedText)
+            }
         if viewModel.textFormatterMap.isEmpty == false {
             return checkTextFormatter(textView: textView as! GrowingTextView, range: range, text: text)
         } else {

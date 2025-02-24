@@ -30,7 +30,7 @@ public struct TextBubbleStyle: BaseMessageBubbleStyle {
     
     public var reactionsStyle: ReactionsStyle?
     
-    init() {
+    public init() {
         
     }
     

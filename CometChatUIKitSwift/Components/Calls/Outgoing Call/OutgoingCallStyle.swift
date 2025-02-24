@@ -22,4 +22,6 @@ public struct OutgoingCallStyle {
     public var declineButtonCornerRadius: CometChatCornerStyle? = nil
     public var declineButtonBorderWidth: CGFloat = 0
     public var declineButtonBorderColor: UIColor = .clear
+    
+    public init() { }
 }

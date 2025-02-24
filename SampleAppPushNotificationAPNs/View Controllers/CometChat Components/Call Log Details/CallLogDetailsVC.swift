@@ -23,7 +23,32 @@ public class CallLogDetailsVC: UIViewController {
         view.subtitleLabel.font = CometChatTypography.Body.regular
         view.titleContainerStackView.spacing = 4
         view.set(controller: self)
-        view.disable(typing: true)
+        view.set(trailView: { user, group in
+            if let user = user {
+                
+                let menu = CometChatUIKit.getDataSource().getAuxiliaryHeaderMenu(user: user, group: group, controller: self, id: nil, additionalConfiguration: AdditionalConfiguration())
+                menu?.distribution = .fillEqually
+                menu?.alignment = .center
+                menu?.spacing = 8
+                menu?.widthAnchor.constraint(equalToConstant: 100).isActive = true
+                return menu ?? UIView()
+                
+            } else {
+                let callButton = CometChatCallButtons(width: 24, height: 24)
+                callButton.set(controller: self)
+                
+                if let group = group { callButton.set(group: group) }
+                callButton.set(callSettingsBuilder: { user, group, isAudioOnly in
+                    var callSettingsBuilder = CallSettingsBuilder()
+                        .setIsAudioOnly(isAudioOnly)
+                    callSettingsBuilder = callSettingsBuilder.setDefaultAudioMode(isAudioOnly ? "EARPIECE" : "SPEAKER")
+                    return callSettingsBuilder
+                })
+                callButton.distribution = .fillEqually
+                callButton.widthAnchor.constraint(equalToConstant: 60).isActive = true
+                return callButton
+            }
+        })
         return view
     }()
     
@@ -248,34 +273,6 @@ public class CallLogDetailsVC: UIViewController {
         
         tabsCollectionView.selectItem(at: IndexPath(item: 0, section: 0), animated: false, scrollPosition: .centeredHorizontally)
         
-        setTailViewToHeader()
-    }
-    
-    public func setTailViewToHeader() {
-        if let user = currentUser {
-            
-            let menu = CometChatUIKit.getDataSource().getAuxiliaryHeaderMenu(user: user, group: currentGroup, controller: self, id: nil)
-            menu?.distribution = .fillEqually
-            menu?.alignment = .center
-            menu?.spacing = 8
-            menu?.widthAnchor.constraint(equalToConstant: 100).isActive = true
-            userInfoView.set(tailView: menu ?? UIView())
-            
-        } else {
-            let callButton = CometChatCallButtons(width: 24, height: 24)
-            callButton.set(controller: self)
-            
-            if let group = currentGroup { callButton.set(group: group) }
-            callButton.set(callSettingsBuilder: { user, group, isAudioOnly in
-                var callSettingsBuilder = CallSettingsBuilder()
-                    .setIsAudioOnly(isAudioOnly)
-                callSettingsBuilder = callSettingsBuilder.setDefaultAudioMode(isAudioOnly ? "EARPIECE" : "SPEAKER")
-                return callSettingsBuilder
-            })
-            callButton.distribution = .fillEqually
-            callButton.widthAnchor.constraint(equalToConstant: 60).isActive = true
-            userInfoView.set(tailView: callButton)
-        }
     }
     
     public func setupPageViewController() {

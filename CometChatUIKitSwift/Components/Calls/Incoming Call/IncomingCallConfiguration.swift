@@ -28,6 +28,14 @@ public final class IncomingCallConfiguration {
     private(set) var incomingCallStyle: IncomingCallStyle?
     private(set) var callSettingsBuilder: CallSettingsBuilder?
     
+    private(set) var onCancelClick: ((_ call: Call?, _ controller: UIViewController?) -> Void)?
+    private(set) var onAcceptClick: ((_ call: Call?, _ controller: UIViewController?) -> Void)?
+    private(set) var listItemView: ((_ call: Call) -> UIView)?
+    private(set) var trailView: ((_ call: Call) -> UIView)?
+    private(set) var titleView: ((_ call: Call) -> UIView)?
+    private(set) var subtitleView: ((_ call: Call) -> UIView)?
+    private(set) var leadingView: ((_ call: Call) -> UIView)?
+    
     public init() {}
     
     /// Configures the outgoing call settings using a custom CallSettingsBuilder.
@@ -111,6 +119,48 @@ public final class IncomingCallConfiguration {
     @discardableResult
     public func set(incomingCallStyle: IncomingCallStyle?) -> Self {
         self.incomingCallStyle = incomingCallStyle
+        return self
+    }
+    
+    @discardableResult
+    public func set(subtitleView: ((_ call: Call) -> UIView)?) -> Self {
+        self.subtitleView = subtitleView
+        return self
+    }
+    
+    @discardableResult
+    public func set(trailView: ((_ call: Call) -> UIView)?) -> Self {
+        self.trailView = trailView
+        return self
+    }
+    
+    @discardableResult
+    public func set(titleView: ((_ call: Call) -> UIView)?) -> Self {
+        self.titleView = titleView
+        return self
+    }
+    
+    @discardableResult
+    public func set(listItemView: ((_ call: Call) -> UIView)?) -> Self {
+        self.listItemView = listItemView
+        return self
+    }
+    
+    @discardableResult
+    public func set(leadingView: ((_ call: Call) -> UIView)?) -> Self {
+        self.leadingView = leadingView
+        return self
+    }
+    
+    @discardableResult
+    public func set(onCancelClick: @escaping (_ call: Call?, _ controller: UIViewController?) -> Void) -> Self {
+        self.onCancelClick = onCancelClick
+        return self
+    }
+    
+    @discardableResult
+    public func set(onAcceptClick: @escaping (_ call: Call?, _ controller: UIViewController?) -> Void) -> Self {
+        self.onAcceptClick = onAcceptClick
         return self
     }
     

@@ -15,18 +15,29 @@ open class CometChatCallLogs: CometChatListBase {
     
     // MARK: - Properties
     public let viewModel = CallLogsViewModel()
-    public var tailView: ((_ call: CometChatCallsSDK.CallLog) -> UIView)?
-    public var subtitleView: ((_ callLog: Any) -> UIView)?
-    public var onItemClick: ((_ callLog: CometChatCallsSDK.CallLog) -> Void)?
+    var listItemView: ((_ call: CometChatCallsSDK.CallLog) -> UIView)?
+    var trailView: ((_ call: CometChatCallsSDK.CallLog) -> UIView)?
+    var leadingView: ((_ call: CometChatCallsSDK.CallLog) -> UIView)?
+    var titleView: ((_ call: CometChatCallsSDK.CallLog) -> UIView)?
+    var subtitleView: ((_ callLog : CometChatCallsSDK.CallLog) -> UIView)?
+    var onItemClick: ((_ callLog: CometChatCallsSDK.CallLog) -> Void)?
+    var onItemLongClick: ((_ callLog: CometChatCallsSDK.CallLog, _ indexPath: IndexPath) -> Void)?
     public var goToCallLogDetail: ((_ callLog: CometChatCallsSDK.CallLog, _ user: User?, _ group: Group?) -> Void)?
-    public var onError: ((_ error: Any?) -> Void)?
-    public var outgoingCallConfiguration = OutgoingCallConfiguration()
-    public var onCallButtonClicked: ((CometChatCallsSDK.CallLog) -> Void)?
+    var onError: ((_ error: Any?) -> Void)?
+    var outgoingCallConfiguration = OutgoingCallConfiguration()
+    var onCallButtonClicked: ((CometChatCallsSDK.CallLog) -> Void)?
     public var callUser: CallUser?
     public var callGroup: CallGroup?
     public var callRequestBuilder: CometChatCallsSDK.CallLogsRequest.CallLogsBuilder?
     public static var style = CallLogStyle()
     public lazy var style = CometChatCallLogs.style
+    
+    var onEmpty: (() -> Void)?
+    var onLoad: (([CometChatCallsSDK.CallLog]) -> Void)?
+    var datePattern: ((_ callLog: CometChatCallsSDK.CallLog) -> String)?
+    var options: ((_ call: CometChatCallsSDK.CallLog) -> [CometChatCallOption])?
+    var addOptions: ((_ call: CometChatCallsSDK.CallLog) -> [CometChatCallOption])?
+    
     
     public static var avatarStyle: AvatarStyle = {
         var avatarStyle = CometChatAvatar.style
@@ -103,6 +114,9 @@ open class CometChatCallLogs: CometChatListBase {
                 self.reload()
                 self.hideFooterIndicator()
                 self.refreshControl.endRefreshing()
+                if let onLoad = self.onLoad?(self.viewModel.callLogs){
+                    onLoad
+                }
             }
         }
         
@@ -114,7 +128,9 @@ open class CometChatCallLogs: CometChatListBase {
                 if self.viewModel.callLogs.isEmpty {
                     self.removeLoadingView()
                     self.showErrorView()
+                    
                 }
+                self.onError?(error)
             }
         }
         
@@ -125,6 +141,9 @@ open class CometChatCallLogs: CometChatListBase {
                 self.removeLoadingView()
                 if self.viewModel.callLogs.isEmpty{
                     self.showEmptyView()
+                    if let onEmpty = self.onEmpty?(){
+                        onEmpty
+                    }
                 }
             }
         }
@@ -206,6 +225,11 @@ extension CometChatCallLogs {
             listItem.titleLabel.textColor = style.missedCallTitleColor
         }
         
+        if let titleView = titleView{
+            let titleView = titleView(callData)
+            listItem.set(titleView: titleView)
+        }
+        
         if let subTitleCallBack = subtitleView {
             let subTitleView = subTitleCallBack(callData)
             listItem.set(subtitle: subTitleView)
@@ -215,14 +239,23 @@ extension CometChatCallLogs {
                 style: style,
                 incomingCallIcon: style.incomingCallIcon,
                 outgoingCallIcon: style.outgoingCallIcon,
-                missedCallIcon: style.incomingCallIcon
+                missedCallIcon: style.incomingCallIcon, callDate: datePattern?(callData)
             )
             listItem.set(subtitle: defaultSubtitle)
         }
         
+        if let listItemView = listItemView{
+            let listItemView = listItemView(callData)
+            listItem.set(customView: listItemView)
+        }
+        
+        if let leadingView = leadingView?(callData){
+            listItem.set(leadingView: leadingView)
+        }
+        
         listItem.set(avatarURL: callUser?.avatar ?? callGroup?.icon ?? "")
         
-        if let tailViewCallBack = tailView {
+        if let tailViewCallBack = trailView {
             let tailView = tailViewCallBack(callData)
             listItem.set(tail: tailView)
         } else {
@@ -240,6 +273,10 @@ extension CometChatCallLogs {
             tailView.pin(anchors: [.height, .width], to: 24)
             tailView.setImage(callImage, for: .normal)
             listItem.set(tail: tailView)
+        }
+        
+        listItem.onItemLongClick = {
+            self.onItemLongClick?(callData, indexPath)
         }
         
         return listItem
@@ -269,6 +306,7 @@ extension CometChatCallLogs {
                         }
                     }
                 } onError: { error in
+                    self.onError?(error)
                     print("error")
                 }
             }else{
@@ -278,11 +316,51 @@ extension CometChatCallLogs {
                         self.goToCallLogDetail?(self.viewModel.callLogs[indexPath.row], nil, group)
                     }
                 } onError: { error in
+                    self.onError?(error)
                     print("error")
                 }
 
             }
         }
+    }
+    
+    public override func tableView(_ tableView: UITableView, trailingSwipeActionsConfigurationForRowAt indexPath: IndexPath) -> UISwipeActionsConfiguration? {
+        
+        guard let callData = viewModel.callLogs[safe: indexPath.row] else {
+            return nil
+        }
+            
+        var actions = [UIContextualAction]()
+        if let customOptions = options?(callData) {
+            let customActions = customOptions.map { option -> UIContextualAction in
+                let action = UIContextualAction(style: .normal, title: option.title) { (action, sourceView, completionHandler) in
+                    option.onClick?(nil, indexPath.section, option, self)
+                    completionHandler(true)
+                }
+                action.backgroundColor = option.backgroundColor
+                action.image = option.icon?.withTintColor(option.iconTint ?? .white)
+                return action
+            }
+            actions.append(contentsOf: customActions)
+        }
+        
+        if let addOptions = addOptions?(callData){
+            let customActions = addOptions.map { option -> UIContextualAction in
+                let action = UIContextualAction(style: .normal, title: option.title) { (action, sourceView, completionHandler) in
+                    option.onClick?(nil, indexPath.section, option, self)
+                    completionHandler(true)
+                }
+                action.backgroundColor = option.backgroundColor
+                action.image = option.icon?.withTintColor(option.iconTint ?? .white)
+                return action
+            }
+            actions.append(contentsOf: customActions)
+        }
+        
+        let swipeActionConfig = UISwipeActionsConfiguration(actions: actions)
+        swipeActionConfig.performsFirstActionWithFullSwipe = false
+        return swipeActionConfig
+        
     }
     
     public override func tableView(_ tableView: UITableView, heightForRowAt indexPath: IndexPath) -> CGFloat {
@@ -291,73 +369,6 @@ extension CometChatCallLogs {
     
     public override func tableView(_ tableView: UITableView, canEditRowAt indexPath: IndexPath) -> Bool {
         return false
-    }
-}
-
-extension CometChatCallLogs {
-    
-    @discardableResult
-    public func set(callRequestBuilder: Any) -> Self {
-        if let callRequestBuilder = (callRequestBuilder as? CometChatCallsSDK.CallLogsRequest.CallLogsBuilder) {
-            self.viewModel.callLogRequestBuilder = callRequestBuilder
-        }
-        return self
-    }
-    
-    @discardableResult
-    public func set(title: String) -> Self {
-        self.title = title
-        return self
-    }
-    
-    @discardableResult
-    public func set(subtitleView: ((_ callLog : Any) -> UIView)?) -> Self {
-        self.subtitleView = subtitleView
-        return self
-    }
-    
-    @discardableResult
-    public func set(tailView: ((_ callLog : Any) -> UIView)?) -> Self {
-        self.tailView = tailView
-        return self
-    }
-    
-    @discardableResult
-    public func set(callRequestBuilder: Any?) -> Self {
-        if let callRequestBuilder = callRequestBuilder as? CometChatCallsSDK.CallLogsRequest.CallLogsBuilder {
-            self.callRequestBuilder = callRequestBuilder
-        }
-        return self
-    }
-    
-    @discardableResult
-    public func set(onItemClick: ((_ callLog : Any) -> ())?) -> Self {
-        self.onItemClick = onItemClick
-        return self
-    }
-    
-    @discardableResult
-    public func set(onError: ((_ error : Any) -> ())?) -> Self {
-        self.onError = onError
-        return self
-    }
-    
-    @discardableResult
-    public func set(outgoingCallConfiguration: OutgoingCallConfiguration) -> Self {
-        self.outgoingCallConfiguration = outgoingCallConfiguration
-        return self
-    }
-    
-    @discardableResult
-    public func set(emptyStateView: UIView) -> Self {
-        self.emptyStateView = emptyStateView
-        return self
-    }
-    
-    @discardableResult
-    public func set(errorStateView: UIView) -> Self {
-        self.errorStateView = errorStateView
-        return self
     }
 }
 #endif

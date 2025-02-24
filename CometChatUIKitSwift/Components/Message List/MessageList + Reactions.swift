@@ -11,9 +11,8 @@ import CometChatSDK
 extension CometChatMessageList {
     
     //Adding Reaction View in TableViewCell
-    internal func buildReactionsView(forMessage: BaseMessage, cell: CometChatMessageBubble, alignment: MessageBubbleAlignment, reactionStlye : ReactionsStyle) {
+    internal func buildReactionsView(forMessage: BaseMessage, cell: CometChatMessageBubble, alignment: MessageBubbleAlignment, reactionStlye : ReactionsStyle, template: CometChatMessageTemplate) {
         
-        if disableReactions == true { return }
         if forMessage.reactions.isEmpty == true { return }
         
         cell.bubbleStackView.layoutIfNeeded()
@@ -22,13 +21,21 @@ extension CometChatMessageList {
         let cometChatReaction = CometChatReactions()
             .set(message: forMessage)
             .set(width: width)
-            .set(onReactionsLongPressed: { [weak self] reaction, baseMessage in
+            .set(onReactionsLongPressed: { [weak self] reactionCount, baseMessage in
                 guard let this = self else { return }
                 guard let message = baseMessage else { return }
                 let reactionList = CometChatReactionList()
                     .set(message: message)
-                    .set(defaultReaction: reaction.reaction)
+                    .set(defaultReaction: reactionCount.reaction)
                     .set(configuration: this.reactionListConfiguration)
+                    .set(onClick: { reaction, baseMessage in
+                        if let onReactionListItemClick = self?.onReactionListItemClick?(reaction, baseMessage){
+                            onReactionListItemClick
+                        }
+                    })
+                if let reactionsRequestBuilder = self?.reactionsRequestBuilder{
+                    reactionList.set(reactionRequestBuilder: reactionsRequestBuilder)
+                }
                 
                 if #available(iOS 15.0, *) {
                     if let presentationController = reactionList.presentationController as? UISheetPresentationController {
@@ -43,11 +50,15 @@ extension CometChatMessageList {
                 
             })
             .set(onReactionsPressed: { [weak self] reaction, baseMessage in
-                self?.reactToMessage(baseMessage: baseMessage, reaction: reaction.reaction)
+                if let onReactionClick = self?.onReactionClick?(reaction, baseMessage){
+                    onReactionClick
+                }else{
+                    self?.reactToMessage(baseMessage: baseMessage, reaction: reaction.reaction)
+                }
             })
             .set(reactionAlignment: alignment)
             .set(configuration: reactionsConfiguration)
-            .buildUI()
+//            .buildUI()
         
         cometChatReaction.style = reactionStlye
         cometChatReaction.isLayoutMarginsRelativeArrangement = true

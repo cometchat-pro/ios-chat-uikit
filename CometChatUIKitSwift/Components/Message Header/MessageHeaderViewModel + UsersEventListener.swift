@@ -15,6 +15,7 @@ extension MessageHeaderViewModel: CometChatUserDelegate {
         if self.user?.uid == user.uid && self.user?.blockedByMe == false {
             self.user = user
             updateUserStatus?(true)
+            onUpdate?()
         }
     }
     
@@ -22,6 +23,7 @@ extension MessageHeaderViewModel: CometChatUserDelegate {
         if self.user?.uid == user.uid  && self.user?.blockedByMe == false {
             self.user = user
             updateUserStatus?(false)
+            onUpdate?()
         }
     }
 }
@@ -34,6 +36,7 @@ extension MessageHeaderViewModel: CometChatUserEventListener {
             DispatchQueue.main.async {
                 self.user = user
                 self.hideUserStatus?()
+                self.onUpdate?()
             }
             
             
@@ -50,6 +53,7 @@ extension MessageHeaderViewModel: CometChatUserEventListener {
                     self.updateUserStatus?(true)
                 }
                 self.updateTypingStatus?(nil, false)
+                self.onUpdate?()
             }
         }
     }

@@ -73,10 +73,10 @@ class StickersExtensionDecorator: DataSourceDecorator {
             
         }, bubbleView: nil, headerView: nil, footerView: nil) { message, alignment, controller in
             guard let message = message else { return nil }
-            return ChatConfigurator.getDataSource().getBottomView(message: message, controller: controller, alignment: alignment)
+            return ChatConfigurator.getDataSource().getBottomView(message: message, controller: controller, alignment: alignment, additionalConfiguration: additionalConfiguration)
         } options: { message, group, controller in
             guard let message = message, let user = LoggedInUserInformation.getUser() else { return [] }
-            return ChatConfigurator.getDataSource().getCommonOptions(loggedInUser: user, messageObject: message, controller: controller, group: group)
+            return ChatConfigurator.getDataSource().getCommonOptions(loggedInUser: user, messageObject: message, controller: controller, group: group, additionalConfiguration: additionalConfiguration ?? AdditionalConfiguration())
         }
         
     }
@@ -85,7 +85,7 @@ class StickersExtensionDecorator: DataSourceDecorator {
         if messageType == MessageCategoryConstants.custom && messageCategory == stickerTypeConstant {
             return getTemplate(additionalConfiguration: additionalConfiguration)
         }
-        return super.getMessageTemplate(messageType: messageType, messageCategory: messageCategory)
+        return super.getMessageTemplate(messageType: messageType, messageCategory: messageCategory, additionalConfiguration: additionalConfiguration)
     }
     
     public func getStickerMessageBubble(stickerUrl: String?, message: CometChatSDK.CustomMessage?, controller: UIViewController?, style: StickerBubbleStyle?, additionalConfiguration: AdditionalConfiguration?) -> UIView? {
@@ -126,13 +126,15 @@ class StickersExtensionDecorator: DataSourceDecorator {
         return "stickers"
     }
     
-    public override func getLastConversationMessage(conversation: Conversation, isDeletedMessagesHidden: Bool, additionalConfiguration: AdditionalConfiguration?) -> NSAttributedString? {
+    public override func getLastConversationMessage(conversation: Conversation, additionalConfiguration: AdditionalConfiguration?) -> NSAttributedString? {
         if let customMessage = conversation.lastMessage as? CustomMessage, let additionalConfiguration {
             if customMessage.type == MessageTypeConstants.sticker && customMessage.deletedAt == 0.0 {
                 return addImageToText(text: ConversationConstants.customMessageSticker, image: "messages-stickers", additionalConfiguration: additionalConfiguration)
+            }else if customMessage.deletedAt > 0.0{
+                return addImageToText(text: ConversationConstants.thisMessageDeleted, image: "deleted-message", additionalConfiguration: additionalConfiguration)
             }
         }
-        return super.getLastConversationMessage(conversation: conversation, isDeletedMessagesHidden: isDeletedMessagesHidden, additionalConfiguration: additionalConfiguration)
+        return super.getLastConversationMessage(conversation: conversation, additionalConfiguration: additionalConfiguration)
     }
     
     public func getStickerKeyboard(user: User?, group: Group?, controller: UIViewController?, id: [String: Any]?) -> CometChatStickerKeyboard {

@@ -40,34 +40,35 @@ open class CometChatConversations: CometChatListBase {
     public var protectedGroupIcon = UIImage(systemName: "lock.fill")?.withRenderingMode(.alwaysTemplate)
     
     // Disable Properties
-    public var isHideDeletedMessages: Bool = false
-    public var disableUsersPresence: Bool = false
-    public var disableReceipt: Bool = false
     public var disableTyping: Bool = false
     public var disableSoundForMessages: Bool = false
     public var customSoundForMessages: URL?
-    public var disableMentions = false {
-        didSet {
-            disable(mentions: disableMentions)
-        }
-    }
    
     //Internal Helper variables
     var listItemView: ((_ conversation: Conversation) -> UIView)?
+    var leadingView: ((_ conversation: Conversation) -> UIView)?
+    var titleView: ((_ conversation: Conversation) -> UIView)?
     var subtitleView: ((_ conversation: Conversation) -> UIView)?
     var onItemLongClick: ((_ conversation: Conversation, _ indexPath: IndexPath) -> Void)?
     var onError: ((_ error: CometChatException) -> Void)?
+    var onEmpty: (() -> Void)?
+    var onLoad: ((_ conversation: [Conversation]) -> Void)?
     var datePattern: ((_ conversation: Conversation) -> String)?
     var onItemClick: ((_ conversation: Conversation, _ indexPath: IndexPath) -> Void)?
-    var onDidSelect: ((_ conversation: Conversation, _ indexPath: IndexPath) -> Void)?
+    var onSelection: ((_ conversation: [Conversation]) -> Void)?
     var tailView: ((_ conversation: Conversation) -> UIView)?
     var options: ((_ conversation: Conversation) -> [CometChatConversationOption])?
+    var addOptions: ((_ conversation: Conversation) -> [CometChatConversationOption])?
     var textFormatters: [CometChatTextFormatter] = {
         return ChatConfigurator.getDataSource().getTextFormatters()
     }()
     
-    //private helper function
-    private var viewModel: ConversationsViewModel = ConversationsViewModel()
+    var viewModel: ConversationsViewModel = ConversationsViewModel()
+    
+    public var hideReceipts: Bool = false
+    public var hideDeleteConversationOption: Bool = false
+    public var hideUserStatus: Bool = false
+    public var hideGroupType: Bool = false
 
     
     deinit {
@@ -94,6 +95,11 @@ open class CometChatConversations: CometChatListBase {
         setupViewModel()
         viewModel.isRefresh = true
         hideSeparator = true
+        if selectionMode == .single{
+            tableView.allowsMultipleSelection = false
+        }else if selectionMode == .multiple{
+            tableView.allowsMultipleSelection = true
+        }
         showLoadingView()
     }
     
@@ -164,13 +170,19 @@ open class CometChatConversations: CometChatListBase {
             DispatchQueue.main.async {
                 
                 if this.viewModel.size() == 0 {
-                    this.showEmptyView()
+                    if let onEmpty = this.onEmpty{
+                        onEmpty()
+                    }else{
+                        this.showEmptyView()
+                    }
                 } else if this.isEmptyStateVisible {
                     this.removeEmptyView()
                 } else if this.isErrorStateVisible {
                     this.removeErrorView()
                 }
-                
+                if let onLoad = this.onLoad?(this.viewModel.conversations){
+                    onLoad
+                }
                 this.hideFooterIndicator()
                 this.reload()
                 this.removeLoadingView()
@@ -218,9 +230,8 @@ open class CometChatConversations: CometChatListBase {
                     cell.set(subtitle: ConversationsUtils.configureSubtitleView(
                         conversation: conversation,
                         isTypingEnabled: false,
-                        isHideDeletedMessages: this.isHideDeletedMessages,
                         receiptStyle: this.receiptStyle,
-                        disableReceipt: this.disableReceipt,
+                        disableReceipt: this.hideReceipts,
                         textFormatter: this.textFormatters,
                         typingIndicator: nil,
                         typingIndicatorStyle: this.typingIndicatorStyle,
@@ -245,9 +256,7 @@ open class CometChatConversations: CometChatListBase {
         viewModel.deleteAtIndex = { [weak self] indexPath in
             guard let this = self else { return }
             DispatchQueue.main.async {
-//                this.tableView.beginUpdates()
                 this.tableView.deleteRows(at: [indexPath], with: .none)
-//                this.tableView.endUpdates()
                 this.tableView.reloadData()
             }
         }
@@ -302,9 +311,8 @@ open class CometChatConversations: CometChatListBase {
                     cell.set(subtitle: ConversationsUtils.configureSubtitleView(
                         conversation: conversation,
                         isTypingEnabled: isTyping,
-                        isHideDeletedMessages: this.isHideDeletedMessages,
                         receiptStyle: this.receiptStyle,
-                        disableReceipt: this.disableReceipt,
+                        disableReceipt: this.hideReceipts,
                         textFormatter: this.textFormatters,
                         typingIndicator: typingIndicator,
                         typingIndicatorStyle: this.typingIndicatorStyle,
@@ -333,122 +341,6 @@ open class CometChatConversations: CometChatListBase {
         tableView.register(CometChatListItem.self, forCellReuseIdentifier: CometChatListItem.identifier)
     }
     
-    func disable(mentions: Bool) {
-        if mentions == true {
-            self.textFormatters.enumerated().forEach { (index, formatter) in
-                if formatter.formatterID == CometChatMentionsFormatter().formatterID {
-                    self.textFormatters.remove(at: index)
-                }
-            }
-        }
-    }
-    
-}
-
-extension CometChatConversations {
-    
-    @discardableResult
-    public func setOnItemClick(onItemClick: @escaping ((_ conversation: Conversation, _ indexPath: IndexPath) -> Void)) -> Self {
-        self.onItemClick = onItemClick
-        return self
-    }
-    
-    @discardableResult
-    public func setOnItemLongClick(onItemLongClick: @escaping ((_ conversation: Conversation, _ indexPath: IndexPath) -> Void)) -> Self {
-        self.onItemLongClick = onItemLongClick
-        return self
-    }
-    
-    @discardableResult
-    public func setOnError(onError: @escaping ((_ error: CometChatException) -> Void)) -> Self {
-        self.onError = onError
-        return self
-    }
-    
-    @discardableResult
-    public func set(textFormatters: [CometChatTextFormatter]) -> Self {
-        self.textFormatters = textFormatters
-        return self
-    }
-    
-    @discardableResult
-    public func insert(conversation: Conversation, at: Int) -> Self {
-        viewModel.insert(conversation: conversation, at: at)
-        return self
-    }
-    
-    @discardableResult
-    func update(conversation: Conversation) -> Self {
-        viewModel.update(conversation: conversation)
-        return self
-    }
-    
-    @discardableResult
-    func remove(conversation: Conversation) -> Self {
-        viewModel.remove(conversation: conversation)
-        return self
-    }
-    
-    @discardableResult
-    func clearList() -> Self {
-        viewModel.clearList()
-        return self
-    }
-    
-    func size() -> Int {
-        return viewModel.size()
-    }
-    
-    @discardableResult
-    public func setDatePattern(datePattern: @escaping ((_ conversation: Conversation) -> String)) -> Self {
-        self.datePattern = datePattern
-        return self
-    }
-    
-    @discardableResult
-    public func setListItemView(listItemView: @escaping ((_ conversation: Conversation) -> UIView)) -> Self {
-        self.listItemView = listItemView
-        return self
-    }
-    
-    @discardableResult
-    public func setOptions(options: ((_ conversation: Conversation?) -> [CometChatConversationOption])?) -> Self {
-      self.options = options
-      return self
-    }
-    
-    @discardableResult
-    public func getSelectedConversations() -> [Conversation] {
-        return viewModel.selectedConversations
-    }
-    
-    @discardableResult
-    public func setTailView(tailView: @escaping ((_ conversation: Conversation) -> UIView)) -> Self {
-        self.tailView = tailView
-        return self
-    }
-    
-    @discardableResult
-    public func setSubtitle(subtitleView: @escaping ((_ conversation: Conversation) -> UIView)) -> Self {
-        self.subtitleView = subtitleView
-        return self
-    }
-    
-    @discardableResult
-    public func setRequestBuilder(conversationRequestBuilder: ConversationRequest.ConversationRequestBuilder) -> Self {
-        viewModel.setRequestBuilder(conversationRequestBuilder: conversationRequestBuilder)
-        return self
-    }
-    
-    @discardableResult
-    public func set(itemClickListener:  ((_ conversation: Conversation, _ indexPath: IndexPath) -> Void)?) -> Self {
-        onDidSelect = itemClickListener
-        return self
-    }
-    
-    public func getConversationList() -> [Conversation] {
-        return viewModel.conversations
-    }
 }
 
 extension CometChatConversations {
@@ -474,6 +366,11 @@ extension CometChatConversations {
                 listItem.avatarHeightConstraint.constant = 48
                 listItem.avatarWidthConstraint.constant = 48
                 
+                //Building leading View
+                if let leading = leadingView?(conversation){
+                    listItem.set(leadingView: leading)
+                }
+                
                 //Building tail View
                 if let tailView = tailView?(conversation){
                     listItem.set(tail: tailView)
@@ -493,9 +390,8 @@ extension CometChatConversations {
                     listItem.set(subtitle: ConversationsUtils.configureSubtitleView(
                         conversation: conversation,
                         isTypingEnabled: false,
-                        isHideDeletedMessages: isHideDeletedMessages,
                         receiptStyle: receiptStyle,
-                        disableReceipt: disableReceipt,
+                        disableReceipt: hideReceipts,
                         textFormatter: textFormatters,
                         typingIndicatorStyle: typingIndicatorStyle,
                         conversationStyle: style
@@ -505,12 +401,16 @@ extension CometChatConversations {
                 switch conversation.conversationType {
                 case .user:
                     guard let user = conversation.conversationWith as? User else { return UITableViewCell()}
-                    if let name = user.name {
-                        listItem.set(title: name)
+                    if let titleView = titleView?(conversation){
+                        listItem.set(titleView: titleView)
+                    }else{
+                        if let name = user.name {
+                            listItem.set(title: name)
+                        }
                     }
                     
                     listItem.set(avatarURL: user.avatar ?? "")
-                    if !disableUsersPresence && user.status == .online {
+                    if !hideUserStatus && user.status == .online {
                         listItem.hide(statusIndicator: false)
                         listItem.statusIndicator.style.backgroundColor = statusIndicatorStyle.backgroundColor
                         listItem.statusIndicator.layoutSubviews()
@@ -519,8 +419,12 @@ extension CometChatConversations {
                     }
                 case .group:
                     guard let group = conversation.conversationWith as? Group else { return UITableViewCell()}
-                    if let name = group.name {
-                        listItem.set(title: name)
+                    if let titleView = titleView?(conversation){
+                        listItem.set(titleView: titleView)
+                    }else{
+                        if let name = group.name {
+                            listItem.set(title: name)
+                        }
                     }
                     
                     listItem.set(avatarURL: group.icon ?? "")
@@ -528,13 +432,13 @@ extension CometChatConversations {
                     case .public:
                         listItem.hide(statusIndicator: true)
                     case .private:
-                        listItem.hide(statusIndicator: false)
+                        listItem.hide(statusIndicator: hideGroupType)
                         listItem.statusIndicator.style.backgroundColor = style.privateGroupImageBackgroundColor
                         listItem.set(statusIndicatorIcon: privateGroupIcon)
                         listItem.set(statusIndicatorIconTint: style.privateGroupImageTintColor)
                         listItem.statusIndicator.layoutSubviews() //this will update background colour
                     case .password:
-                        listItem.hide(statusIndicator: false)
+                        listItem.hide(statusIndicator: hideGroupType)
                         listItem.set(statusIndicatorIcon: protectedGroupIcon)
                         listItem.statusIndicator.style.backgroundColor = style.passwordGroupImageBackgroundColor
                         listItem.set(statusIndicatorIconTint: style.privateGroupImageTintColor)
@@ -556,6 +460,9 @@ extension CometChatConversations {
                 guard let this = self else { return }
                 this.onItemLongClick?(conversation, indexPath)
             }
+            
+            manageSelectionState(for: conversation, in: listItem, at: indexPath)
+            
             return listItem
         }
         return UITableViewCell()
@@ -577,19 +484,25 @@ extension CometChatConversations {
         }
     }
     
+    public func manageSelectionState(for conversation: Conversation, in listItem: CometChatListItem, at indexPath: IndexPath) {
+        // Check if the user is selected and update the UI accordingly
+        listItem.isSelected = viewModel.selectedConversations.contains(where: { $0.conversationId == conversation.conversationId })
+        if listItem.isSelected {
+            tableView.selectRow(at: indexPath, animated: false, scrollPosition: .none)
+        } else {
+            tableView.deselectRow(at: indexPath, animated: false)
+        }
+    }
+    
     open override func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
         let conversation = viewModel.conversations[indexPath.row]
-        if let onItemClick = onItemClick {
-            onItemClick(conversation, indexPath)
-        } else {
-            onDidSelect?(conversation, indexPath)
-        }
         
         if selectionMode == .none {
-            tableView.deselectRow(at: indexPath, animated: true)
+            onItemClick?(conversation, indexPath)
         } else {
             if !viewModel.selectedConversations.contains(conversation) {
                 self.viewModel.selectedConversations.append(conversation)
+                self.onSelection?(self.viewModel.selectedConversations)
             }
         }
     }
@@ -598,6 +511,7 @@ extension CometChatConversations {
         let conversation =  viewModel.conversations[indexPath.row]
         if let foundConversation = viewModel.selectedConversations.firstIndex(of: conversation) {
             viewModel.selectedConversations.remove(at: foundConversation)
+            self.onSelection?(self.viewModel.selectedConversations)
         }
     }
     
@@ -624,12 +538,27 @@ extension CometChatConversations {
             }
             actions.append(contentsOf: customActions)
         } else {
-            let delete = UIContextualAction(style: .destructive, title: ConversationConstants.delete) { [weak self] (action, sourceView, completionHandler) in
-                guard let this = self else { return }
-                this.delete(conversation: conversation)
+            if !hideDeleteConversationOption{
+                let delete = UIContextualAction(style: .destructive, title: ConversationConstants.delete) { [weak self] (action, sourceView, completionHandler) in
+                    guard let this = self else { return }
+                    this.delete(conversation: conversation)
+                }
+                delete.image = UIImage(named: "messages-delete", in: CometChatUIKit.bundle, with: nil)?.withTintColor(.white)
+                actions.append(delete)
             }
-            delete.image = UIImage(named: "messages-delete", in: CometChatUIKit.bundle, with: nil)?.withTintColor(.white)
-            actions.append(delete)
+        }
+        
+        if let addOptions = addOptions?(conversation){
+            let customActions = addOptions.map { option -> UIContextualAction in
+                let action = UIContextualAction(style: .normal, title: option.title) { (action, sourceView, completionHandler) in
+                    option.onClick?(nil, indexPath.section, option, self)
+                    completionHandler(true)
+                }
+                action.backgroundColor = option.backgroundColor
+                action.image = option.icon?.withTintColor(option.iconTint ?? .white)
+                return action
+            }
+            actions.append(contentsOf: customActions)
         }
         
         let swipeActionConfig = UISwipeActionsConfiguration(actions: actions)

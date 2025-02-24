@@ -11,6 +11,7 @@ import CometChatSDK
 public protocol ThreadedMessageHeaderViewModelProtocol {
     var parentMessage: BaseMessage? { get set }
     var incrementCount: (() -> Void)? { get set }
+    var templates : [String: CometChatMessageTemplate]? { get set}
     
     func connect()
     func disconnect()
@@ -27,6 +28,7 @@ public class ThreadedMessageHeaderViewModel: ThreadedMessageHeaderViewModelProto
         }
     }
     public var incrementCount: (() -> Void)?
+    public var templates: [String : CometChatMessageTemplate]?
     
     open func connect() {
         CometChatMessageEvents.addListener("threaded-messages-message-listener", self)

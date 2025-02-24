@@ -57,7 +57,6 @@ public class CallLogsViewModel {
                 this.empty?()
             }
             this.isFetching = false
-            this.reload?()
         } onError: { [weak self] error in
             guard let this = self else { return }
             this.onError?(error)

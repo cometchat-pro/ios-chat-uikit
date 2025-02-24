@@ -115,5 +115,8 @@ public struct CallLogStyle: ListItemStyle, ListBaseStyle {
     
     public var separatorColor: UIColor? = .clear
     
+    
+    public init() { }
+    
 }
 #endif

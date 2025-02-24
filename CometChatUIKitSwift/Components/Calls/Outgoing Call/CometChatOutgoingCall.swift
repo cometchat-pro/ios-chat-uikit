@@ -13,12 +13,31 @@ import CometChatCallsSDK
 
 @MainActor
 open class CometChatOutgoingCall: UIViewController {
+    
+    public lazy var avatarTopView: UIView = {
+        let avatarView = UIView().withoutAutoresizingMaskConstraints()
+        avatarView.pin(anchors: [.height, .width], to: 150)
+        avatarView.backgroundColor = .clear
+        return avatarView
+    }()
 
-    public lazy var avatarView: CometChatAvatar = {
+    public lazy var avatar: CometChatAvatar = {
         let avatarView = CometChatAvatar(frame: .zero).withoutAutoresizingMaskConstraints()
         avatarView.pin(anchors: [.height, .width], to: 120)
         avatarView.setAvatar(avatarUrl: (call?.receiver as? User)?.avatar, with: (call?.receiver as? User)?.name)
         return avatarView
+    }()
+    
+    public lazy var titleContainerView: UIView = {
+        let view = UIView().withoutAutoresizingMaskConstraints()
+        view.backgroundColor = .clear
+        return view
+    }()
+    
+    public lazy var subtitleContainerView: UIView = {
+        let view = UIView().withoutAutoresizingMaskConstraints()
+        view.backgroundColor = .clear
+        return view
     }()
     
     public lazy var nameLabel: UILabel = {
@@ -34,6 +53,13 @@ open class CometChatOutgoingCall: UIViewController {
         callingLabel.textAlignment = .center
         callingLabel.text = "Calling"
         return callingLabel
+    }()
+    
+    public lazy var declineButtonView: UIView = {
+        let view = UIButton().withoutAutoresizingMaskConstraints()
+        view.pin(anchors: [.height, .width], to: 100)
+        view.backgroundColor = .clear
+        return view
     }()
     
     public lazy var declineButton: UIButton = {
@@ -53,19 +79,24 @@ open class CometChatOutgoingCall: UIViewController {
     public static var avatarStyle = CometChatAvatar.style
     public var avatarStyle = CometChatOutgoingCall.avatarStyle
     public var style = CometChatOutgoingCall.style
+    var onError: ((_ error: CometChatException) -> Void)?
+    var titleView: ((_ call: Call) -> UIView)?
+    var subtitleView: ((_ call: Call) -> UIView)?
+    var cancelView: ((_ call: Call) -> UIView)?
+    var avatarView: ((_ call: Call) -> UIView)?
         
-    private(set) var call: Call?
-    private(set) var user: User?
-    private(set) var declineButtonText: String = "CANCEL".localize()
-    private(set) var declineButtonIcon: UIImage = UIImage(systemName: "xmark") ?? UIImage()
-    private(set) var disableSoundForCalls: Bool = false
-    private(set) var customSoundForCalls: URL?
-    private(set) var fullscreenView: UIView?
-    private(set) var buttonStyle = ButtonStyle()
-    private(set) var outgoingCallStyle = OutgoingCallStyle()
-    private(set) var onCancelClick: ((_ call: Call?, _ controller: UIViewController?) -> Void)?
-    private(set) var viewModel =  OutgoingCallViewModel()
-    private(set) var callSettingsBuilder: CallSettingsBuilder?
+    public var call: Call?
+    public var user: User?
+    public var declineButtonText: String = "CANCEL".localize()
+    public var declineButtonIcon: UIImage = UIImage(systemName: "xmark") ?? UIImage()
+    public var disableSoundForCalls: Bool = false
+    public var customSoundForCalls: URL?
+    public var fullscreenView: UIView?
+    public var buttonStyle = ButtonStyle()
+    public var outgoingCallStyle = OutgoingCallStyle()
+    var onCancelClick: ((_ call: Call?, _ controller: UIViewController?) -> Void)?
+    var viewModel =  OutgoingCallViewModel()
+    public var callSettingsBuilder: CallSettingsBuilder?
     
     open override func viewDidLoad() {
         super.viewDidLoad()
@@ -109,6 +140,7 @@ open class CometChatOutgoingCall: UIViewController {
         
         buildUI()
         setupStyle()
+        addCustomViews()
     }
     
     open override func viewWillAppear(_ animated: Bool) {
@@ -123,32 +155,65 @@ open class CometChatOutgoingCall: UIViewController {
         
         var constraintsToActive = [NSLayoutConstraint]()
         
-        view.addSubview(nameLabel)
+        view.addSubview(titleContainerView)
+        
+        titleContainerView.embed(nameLabel)
         constraintsToActive += [
-            nameLabel.centerXAnchor.pin(equalTo: view.centerXAnchor),
-            nameLabel.topAnchor.pin(equalTo: view.safeAreaLayoutGuide.topAnchor, constant: 80)
+            titleContainerView.centerXAnchor.pin(equalTo: view.centerXAnchor),
+            titleContainerView.topAnchor.pin(equalTo: view.safeAreaLayoutGuide.topAnchor, constant: 80)
         ]
         
-        view.addSubview(callingLabel)
+        view.addSubview(subtitleContainerView)
+        subtitleContainerView.embed(callingLabel)
+        
         constraintsToActive += [
-            callingLabel.centerXAnchor.pin(equalTo: nameLabel.centerXAnchor),
-            callingLabel.topAnchor.pin(equalTo: nameLabel.bottomAnchor, constant: 5)
+            subtitleContainerView.centerXAnchor.pin(equalTo: titleContainerView.centerXAnchor),
+            subtitleContainerView.topAnchor.pin(equalTo: titleContainerView.bottomAnchor, constant: 5)
         ]
         
-        view.addSubview(avatarView)
+        view.addSubview(avatarTopView)
         constraintsToActive += [
-            avatarView.topAnchor.pin(equalTo: callingLabel.bottomAnchor, constant: CometChatSpacing.Margin.m10),
-            avatarView.centerXAnchor.pin(equalTo: nameLabel.centerXAnchor)
+            avatarTopView.topAnchor.pin(equalTo: subtitleContainerView.bottomAnchor, constant: CometChatSpacing.Margin.m10),
+            avatarTopView.centerXAnchor.pin(equalTo: titleContainerView.centerXAnchor)
         ]
         
-        view.addSubview(declineButton)
+        avatarTopView.addSubview(avatar)
+        avatar.pin(anchors: [.centerX, .centerY], to: avatarTopView)
+        
+        
+        view.addSubview(declineButtonView)
         constraintsToActive += [
-            declineButton.centerXAnchor.pin(equalTo: view.centerXAnchor),
-            declineButton.bottomAnchor.pin(equalTo: view.bottomAnchor, constant: -80),
+            declineButtonView.centerXAnchor.pin(equalTo: view.centerXAnchor),
+            declineButtonView.bottomAnchor.pin(equalTo: view.bottomAnchor, constant: -80),
         ]
+        
+        declineButtonView.addSubview(declineButton)
+        declineButton.pin(anchors: [.centerX, .centerY], to: declineButtonView)
         
         NSLayoutConstraint.activate(constraintsToActive)
         
+    }
+    
+    func addCustomViews(){
+        if let call = call, let titleView = titleView?(call){
+            self.titleContainerView.subviews.forEach({$0.removeFromSuperview()})
+            self.titleContainerView.embed(titleView)
+        }
+        
+        if let call = call, let subtitleView = subtitleView?(call){
+            self.subtitleContainerView.subviews.forEach({$0.removeFromSuperview()})
+            self.subtitleContainerView.embed(subtitleView)
+        }
+        
+        if let call = call, let avatarView = avatarView?(call){
+            self.avatarTopView.subviews.forEach({$0.removeFromSuperview()})
+            self.avatarTopView.embed(avatarView)
+        }
+        
+        if let call = call, let cancelView = cancelView?(call){
+            self.declineButtonView.subviews.forEach({$0.removeFromSuperview()})
+            self.declineButtonView.embed(cancelView)
+        }
     }
     
     open func setupStyle() {
@@ -168,7 +233,7 @@ open class CometChatOutgoingCall: UIViewController {
         }
         declineButton.borderWith(width: style.declineButtonBorderWidth)
         declineButton.borderColor(color: style.declineButtonBorderColor)
-        avatarView.style = avatarStyle
+        avatar.style = avatarStyle
     }
     
     @objc open func onDeclineButtonTapped() {
@@ -187,51 +252,6 @@ open class CometChatOutgoingCall: UIViewController {
             }
 
         }
-    }
-}
-
-extension CometChatOutgoingCall {
-    
-    @discardableResult
-    public func set(user: User) -> Self {
-        self.user = user
-        return self
-    }
-    
-    @discardableResult
-    public func set(call: Call) -> Self {
-        self.call = call
-        return self
-    }
-    
-    @discardableResult
-    public func disable(soundForCalls: Bool) -> Self {
-        self.disableSoundForCalls = soundForCalls
-        return self
-    }
-    
-    @discardableResult
-    public func set(customSoundForCalls: URL?) -> Self {
-        self.customSoundForCalls = customSoundForCalls
-        return self
-    }
-    
-    @discardableResult
-    public func setOnCancelClick(onCancelClick: @escaping (_ call: Call?, _ controller: UIViewController?) -> Void) -> Self {
-        self.onCancelClick = onCancelClick
-        return self
-    }
-    
-    /// Configures the outgoing call settings using a custom CallSettingsBuilder.
-    /// This property applies the specified custom CallSettingsBuilder to all outgoing calls.
-    /// - Parameter callSettingBuilder: An instance of a custom CallSettingsBuilder. The object must conform to the CallSettingsBuilder type.
-    /// - Returns: The current instance of OutgoingCallConfiguration for declarative coding, allowing further method chaining.
-    /// - Note: Ensure that the provided callSettingBuilder is of type CallSettingsBuilder, otherwise it will be ignored.
-    @discardableResult public func set(callSettingsBuilder: Any) -> Self {
-        if let callSettingsBuilder = callSettingsBuilder as? CallSettingsBuilder {
-            self.callSettingsBuilder = callSettingsBuilder
-        }
-        return self
     }
 }
 #endif

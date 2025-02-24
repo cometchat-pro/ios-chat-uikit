@@ -49,7 +49,6 @@ public class ConversationsUtils {
     static public func configureSubtitleView(
         conversation: Conversation,
         isTypingEnabled: Bool,
-        isHideDeletedMessages: Bool,
         receiptStyle: ReceiptStyle,
         disableReceipt: Bool,
         textFormatter: [CometChatTextFormatter],
@@ -102,7 +101,7 @@ public class ConversationsUtils {
         let additionalConfiguration = AdditionalConfiguration()
         additionalConfiguration.conversationsStyle = conversationStyle
         additionalConfiguration.textFormatter = textFormatter
-        lastMessage.attributedText = ChatConfigurator.getDataSource().getLastConversationMessage(conversation: conversation, isDeletedMessagesHidden: isHideDeletedMessages, additionalConfiguration: additionalConfiguration)
+        lastMessage.attributedText = ChatConfigurator.getDataSource().getLastConversationMessage(conversation: conversation, additionalConfiguration: additionalConfiguration)
         
         if let lastMessage = conversation.lastMessage, lastMessage.parentMessageId != 0 {
             subTitleImage.image = UIImage(

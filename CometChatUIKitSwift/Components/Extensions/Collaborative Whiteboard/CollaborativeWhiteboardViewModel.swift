@@ -40,23 +40,27 @@ public class CollaborativeWhiteboardViewModel : DataSourceDecorator {
         return templates
     }
     
-    public override func getAttachmentOptions(controller: UIViewController, user: User?, group: Group?, id: [String: Any]?) -> [CometChatMessageComposerAction]? {
-        var actions = super.getAttachmentOptions(controller: controller, user: user, group: group, id: id)
+    public override func getAttachmentOptions(controller: UIViewController, user: User?, group: Group?, id: [String: Any]?, additionalConfiguration: AdditionalConfiguration) -> [CometChatMessageComposerAction]? {
+        var actions = super.getAttachmentOptions(controller: controller, user: user, group: group, id: id, additionalConfiguration: additionalConfiguration)
         if id?[MessagesConstants.parentMessageId] == nil {
             if let option = getAttachmentOption(controller: controller, user: user, group: group) {
-                actions?.append(option)
+                if !additionalConfiguration.hideCollaborativeWhiteboardOption{
+                    actions?.append(option)
+                }
             }
         }
         return actions
     }
     
-    public override func getLastConversationMessage(conversation: Conversation, isDeletedMessagesHidden: Bool, additionalConfiguration: AdditionalConfiguration?) -> NSAttributedString? {
+    public override func getLastConversationMessage(conversation: Conversation, additionalConfiguration: AdditionalConfiguration?) -> NSAttributedString? {
         if let customMessage = conversation.lastMessage as? CustomMessage, let additionalConfiguration {
             if customMessage.type == MessageTypeConstants.whiteboard && customMessage.deletedAt == 0.0 {
                 return addImageToText(text: ConversationConstants.customMessageWhiteboard, image: "collaborative-message-icon", additionalConfiguration: additionalConfiguration)
+            }else if customMessage.deletedAt > 0.0{
+                return addImageToText(text: ConversationConstants.thisMessageDeleted, image: "deleted-message", additionalConfiguration: additionalConfiguration)
             }
         }
-        return super.getLastConversationMessage(conversation: conversation, isDeletedMessagesHidden: isDeletedMessagesHidden, additionalConfiguration: additionalConfiguration)
+        return super.getLastConversationMessage(conversation: conversation, additionalConfiguration: additionalConfiguration)
     }
     
     public func getTemplate(additionalConfiguration: AdditionalConfiguration?) -> CometChatMessageTemplate {
@@ -74,10 +78,10 @@ public class CollaborativeWhiteboardViewModel : DataSourceDecorator {
             
         }, bubbleView: nil, headerView: nil, footerView: nil) { message, alignment, controller in
             guard let message = message else { return nil }
-            return ChatConfigurator.getDataSource().getBottomView(message: message, controller: controller, alignment: alignment)
+            return ChatConfigurator.getDataSource().getBottomView(message: message, controller: controller, alignment: alignment, additionalConfiguration: additionalConfiguration)
         } options: { message, group, controller in
             guard let message = message, let user = LoggedInUserInformation.getUser() else { return [] }
-            return ChatConfigurator.getDataSource().getCommonOptions(loggedInUser: user, messageObject: message, controller: controller, group: group)
+            return ChatConfigurator.getDataSource().getCommonOptions(loggedInUser: user, messageObject: message, controller: controller, group: group, additionalConfiguration: additionalConfiguration ?? AdditionalConfiguration())
         }
 
     }
@@ -86,7 +90,7 @@ public class CollaborativeWhiteboardViewModel : DataSourceDecorator {
         if messageType == MessageCategoryConstants.custom && messageCategory == collaborativeWhiteboardExtensionTypeConstant {
             return getTemplate(additionalConfiguration: additionalConfiguration)
         }
-        return super.getMessageTemplate(messageType: messageType, messageCategory: messageCategory)
+        return super.getMessageTemplate(messageType: messageType, messageCategory: messageCategory, additionalConfiguration: additionalConfiguration)
     }
 
     public func getContentView(_customMessage: CustomMessage, controller: UIViewController?, additionalConfiguration: AdditionalConfiguration?) -> UIView? {
