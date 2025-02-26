@@ -4,7 +4,7 @@
 
 # iOS Sample App by CometChat
 
-This is a reference application showcasing the integration of [CometChat's iOS UI Kit](https://www.cometchat.com/docs/ui-kit/ios/5.0/overview) in a native iOS application. It demonstrates how to implement real-time messaging and voice/video calling features with ease.
+This is a reference application showcasing the integration of [CometChat's iOS UI Kit](https://www.cometchat.com/docs/ui-kit/ios/v5/overview) in a native iOS application. It demonstrates how to implement real-time messaging and voice/video calling features with ease.
 
 <div style="
     display: flex;
@@ -35,4 +35,4 @@ pod install
 
 ## Help and Support
 
-For issues running the project or integrating with our UI Kits, consult our [documentation](https://www.cometchat.com/docs/ui-kit/ios/5.0/overview) or create a [support ticket](https://help.cometchat.com/hc/en-us) or seek real-time support via the [CometChat Dashboard](https://app.cometchat.com/).
+For issues running the project or integrating with our UI Kits, consult our [documentation](https://www.cometchat.com/docs/ui-kit/ios/v5/overview) or create a [support ticket](https://help.cometchat.com/hc/en-us) or seek real-time support via the [CometChat Dashboard](https://app.cometchat.com/).
